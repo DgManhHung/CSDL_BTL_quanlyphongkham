@@ -1,0 +1,55 @@
+============================================================
+  PHÂN HỆ 5: HÓA ĐƠN & DOANH THU – DESKTOP (JavaFX)
+  Giao diện sidebar giống module Y tá để ghép nhóm
+============================================================
+
+YÊU CẦU
+-------
+- JDK 17+
+- MySQL (đã import database.sql)
+- IntelliJ IDEA (khuyến nghị) hoặc Maven + JavaFX
+
+BƯỚC 1: Import DB (nếu chưa)
+----------------------------
+mysql -u root -p -e "DROP DATABASE IF EXISTS phongkham_db;"
+mysql -u root -p < database.sql
+
+BƯỚC 2: Sửa password MySQL
+--------------------------
+Mở file:
+  src/main/java/com/phongkham/dao/DBConnection.java
+
+Sửa dòng:
+  private static final String PASS = "";
+Thành password MySQL của bạn, ví dụ:
+  private static final String PASS = "123456";
+
+BƯỚC 3: Chạy bằng IntelliJ (DỄ NHẤT)
+------------------------------------
+1. Mở IntelliJ IDEA
+2. Open → chọn folder PhanHe5_Desktop
+3. Đợi Maven tải thư viện (góc dưới phải)
+4. Mở: src/main/java/com/phongkham/app/MainApp.java
+5. Bấm nút Run (▶) màu xanh
+6. Cửa sổ app hiện ra → đăng nhập admin / 123456
+
+BƯỚC 4: Chạy bằng Maven (nếu đã cài)
+------------------------------------
+mvn clean javafx:run
+
+TÀI KHOẢN
+---------
+admin    / 123456
+letan01  / 123456
+
+CHỨC NĂNG PHÂN HỆ 5
+-------------------
+- Báo cáo Doanh thu (theo tháng, theo bác sĩ)
+- Quản lý Hóa đơn (danh sách, lọc, tạo mới)
+- Thanh toán hóa đơn
+
+Menu các phân hệ khác (Bác sĩ, Y tá, Bệnh nhân...)
+để sẵn placeholder – khi ghép nhóm chỉ cần gắn
+màn hình của thành viên khác vào MainShell.
+
+============================================================
