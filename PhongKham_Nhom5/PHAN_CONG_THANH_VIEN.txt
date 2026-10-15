@@ -1,0 +1,103 @@
+============================================================
+  PHÂN CÔNG RÕ TỪNG THÀNH VIÊN – NHÓM 5
+  Chủ đề: Hệ thống Quản lý Phòng khám tư nhân
+============================================================
+
+CẤU TRÚC CODE (mỗi người 1 package)
+-----------------------------------
+src/main/java/com/phongkham/
+  ├── app/              → MainApp, LoginView, MainShell (TV5 ghép)
+  ├── shared/           → DB.java, UI.java (dùng chung)
+  ├── tv1_bacsi/        → TV1: BacSiView.java (PLACEHOLDER)
+  ├── tv2_yta/          → TV2: YTaView.java (ĐÃ LÀM)
+  ├── tv3_benhnhan/     → TV3: BenhNhanView.java (ĐÃ LÀM)
+  ├── tv4_thuoc/        → TV4: ThuocView.java (ĐÃ LÀM)
+  └── tv5_doanhthu/     → TV5: DoanhThuView.java (ĐÃ LÀM)
+
+
+========== TV1: BÁC SĨ & TÍNH LƯƠNG (20%) ==========
+Package: tv1_bacsi/
+File:    BacSiView.java  ← đang là PLACEHOLDER
+
+CSDL:    Bảng BacSi (đã có trong database.sql)
+
+SQL chính:
+  Lương BS = 7.000.000 + 1.000.000 × (số BN chữa khỏi 1 loại bệnh trong tháng)
+  (đếm LanKham WHERE TrangThai='DaKhoi', GROUP BY MaBS, MaBN, MaBenh)
+
+UI cần làm:
+  - Màn hình CRUD Bác sĩ (thêm/sửa/xóa/tìm)
+  - Màn hình tính lương theo tháng
+
+Khi xong: thay BacSiView.placeholder() bằng UI thật.
+
+
+========== TV2: Y TÁ & TÍNH LƯƠNG (20%) ==========
+Package: tv2_yta/
+File:    YTaView.java  ← ĐÃ CODE SẴN
+
+CSDL:    YTa, PhanCongYT
+
+SQL chính:
+  Lương YT = 5.000.000 + 200.000 × số lượt hỗ trợ trong tháng
+
+UI:
+  - Quản lý Y tá + tính lương
+  - Theo dõi Chăm sóc (phân công)
+
+
+========== TV3: BỆNH NHÂN & HỒ SƠ (20%) ==========
+Package: tv3_benhnhan/
+File:    BenhNhanView.java  ← ĐÃ CODE SẴN
+
+CSDL:    BenhNhan, LanKham, DanhMucBenh
+
+SQL chính:
+  Tra cứu BN + lịch sử khám + tình trạng hiện tại
+
+UI:
+  - Quản lý Bệnh nhân (CRUD, tìm kiếm, hồ sơ)
+  - Lịch sử khám bệnh (tạo lần khám / tiếp đón)
+
+
+========== TV4: THUỐC & THỐNG KÊ BỆNH (20%) ==========
+Package: tv4_thuoc/
+File:    ThuocView.java  ← ĐÃ CODE SẴN
+
+CSDL:    Thuoc, DonThuoc, ChiTietDonThuoc, DanhMucBenh
+
+SQL chính:
+  Thống kê bệnh theo tháng (số BN, số lần khám)
+
+UI:
+  - Quản lý kho thuốc (CRUD)
+  - Thống kê bệnh theo tháng
+
+
+========== TV5: HÓA ĐƠN, DOANH THU & GHÉP APP (20%) ==========
+Package: tv5_doanhthu/ + app/ + shared/
+Files:   DoanhThuView.java, LoginView, MainShell, DB, UI
+
+CSDL:    HoaDon, ThanhToan, NguoiDung
+
+SQL chính:
+  Doanh thu = SUM(TienKham) + SUM(TienThuoc) theo tháng
+
+UI:
+  - Báo cáo Doanh thu
+  - Quản lý Hóa đơn + Thanh toán
+  - Đăng nhập
+  - MainShell (menu ghép cả nhóm)
+  - GitHub repo
+
+Nhiệm vụ ghép: nhận code TV1–TV4, gắn vào MainShell.show()
+
+
+CÁCH GHÉP KHI TV1 XONG
+----------------------
+1. TV1 viết class BacSiView với method public static Node luongBacSi()
+2. Trong MainShell.java, đổi:
+     case "BacSi" -> BacSiView.placeholder();
+   thành:
+     case "BacSi" -> BacSiView.luongBacSi();
+============================================================
