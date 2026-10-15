@@ -1,0 +1,30 @@
+============================================================
+  HƯỚNG DẪN CHẠY – PHÒNG KHÁM NHÓM 5
+============================================================
+
+1. IMPORT DATABASE (CMD, không dùng PowerShell)
+   cd C:\Users\ACER\Downloads\PhongKham_Nhom5
+   mysql -u root -p < database.sql
+
+   Thấy "IMPORT OK" và bảng Username/MatKhau là thành công.
+
+2. SỬA PASSWORD MYSQL
+   Mở file:
+     src\main\java\com\phongkham\shared\DB.java
+   Sửa:
+     private static final String PASS = "password_mysql_cua_ban";
+
+3. CHẠY APP
+   IntelliJ: Open folder PhongKham_Nhom5 → Run MainApp.java
+   Maven:   mvn clean javafx:run
+
+4. ĐĂNG NHẬP
+   admin   / 123456
+   letan01 / 123456
+
+   (Mật khẩu lưu plain text trong DB – dễ demo, không hash)
+
+5. NẾU LỖI ĐĂNG NHẬP
+   mysql -u root -p -e "USE phongkham_db; SELECT * FROM NguoiDung;"
+   Phải thấy admin / 123456
+============================================================
