@@ -1,0 +1,14 @@
+/* Font hỗ trợ tiếng Việt – áp dụng toàn app */
+.root {
+    -fx-font-family: "Segoe UI", "Tahoma", "Arial", sans-serif;
+    -fx-font-size: 13px;
+}
+
+.label, .button, .text-field, .password-field, .combo-box, .table-view, .table-cell {
+    -fx-font-family: "Segoe UI", "Tahoma", "Arial", sans-serif;
+}
+
+.table-view .column-header .label {
+    -fx-font-family: "Segoe UI", "Tahoma", "Arial", sans-serif;
+    -fx-font-weight: bold;
+}
