@@ -27,10 +27,11 @@ public class BenhNhanView {
             "Trào ngược dạ dày-thực quản", "Thiếu máu", "Mất ngủ");
 
     public static Node danhSachBN() {
-        VBox root = new VBox(16);
+        VBox root = new VBox(10);
+        Label patientCount = UI.badge("0 bệnh nhân");
         TextField search = new TextField();
-        search.setPromptText("Tìm tên / CMT / SĐT / mã BN...");
-        search.setPrefWidth(260);
+        search.setPromptText("⌕  Tìm theo tên, mã, CMT, SĐT...");
+        search.setPrefWidth(280);
 
         TableView<Map<String, Object>> table = UI.table(
                 "MaBN:Mã BN:80", "HoTen:Họ tên:150", "CMT:CMT:120",
@@ -39,31 +40,41 @@ public class BenhNhanView {
 
         Runnable load = () -> {
             String kw = search.getText().trim();
+            List<Map<String, Object>> rows;
             if (kw.isEmpty())
-                UI.loadTable(table, DB.query("SELECT * FROM BenhNhan ORDER BY MaBN"));
+                rows = DB.query("SELECT * FROM BenhNhan ORDER BY MaBN");
             else {
                 String k = "%" + kw + "%";
-                UI.loadTable(table, DB.query(
-                    "SELECT * FROM BenhNhan WHERE HoTen LIKE ? OR CMT LIKE ? OR SDT LIKE ? OR MaBN LIKE ?",
-                    k, k, k, k));
+                rows = DB.query(
+                        "SELECT * FROM BenhNhan WHERE HoTen LIKE ? OR CMT LIKE ? OR SDT LIKE ? OR MaBN LIKE ?",
+                        k, k, k, k);
             }
+            UI.loadTable(table, rows);
+            patientCount.setText(rows.size() + " bệnh nhân");
         };
         search.setOnAction(e -> load.run());
         load.run();
 
-        Button btnSearch = UI.teal("Tìm");
+        Button btnSearch = new Button("⚲");
+        btnSearch.getStyleClass().add("filter-button");
+        btnSearch.setAccessibleText("Lọc danh sách bệnh nhân");
         btnSearch.setOnAction(e -> load.run());
         Button btnAdd = UI.teal("+ Đăng ký BN mới");
         btnAdd.setOnAction(e -> themBN(load));
-        Button btnHS = UI.teal("Xem hồ sơ");
+        Button btnHS = new Button("▤  Xem hồ sơ");
+        btnHS.getStyleClass().add("secondary-button");
         btnHS.setOnAction(e -> {
             Map<String, Object> sel = table.getSelectionModel().getSelectedItem();
             if (sel == null) { UI.alert("Chọn bệnh nhân!"); return; }
             showHoSo(UI.str(sel.get("MaBN")), UI.str(sel.get("HoTen")));
         });
 
-        root.getChildren().addAll(UI.header("QUẢN LÝ BỆNH NHÂN (TV3)", search, btnSearch, btnAdd, btnHS), table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+        VBox tablePanel = UI.tablePanel(table);
+        root.getChildren().addAll(
+                UI.pageHeading("Bệnh nhân", patientCount),
+                UI.toolbar(search, btnSearch, btnAdd, btnHS),
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 
@@ -122,11 +133,12 @@ public class BenhNhanView {
                 new Label("Từ ngày:"), dpTuNgay,
                 new Label("Đến ngày:"), dpDenNgay,
                 btnXoaLoc);
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("LỊCH SỬ KHÁM BỆNH (TV3)", btnAdd),
-                locNgay,
-                table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                UI.pageHeading("Lịch sử khám bệnh"),
+                UI.toolbar(locNgay, btnAdd),
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 

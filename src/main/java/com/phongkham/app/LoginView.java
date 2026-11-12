@@ -1,6 +1,7 @@
 package com.phongkham.app;
 
 import com.phongkham.shared.DB;
+import com.phongkham.shared.UI;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -12,7 +13,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
@@ -29,18 +29,18 @@ public class LoginView {
     public BorderPane getRoot() { return root; }
 
     private void build() {
-        root.setStyle("-fx-background-color:#f0f2f5;");
+        root.getStyleClass().add("login-root");
         VBox card = new VBox(14);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(40));
         card.setMaxWidth(400);
-        card.setStyle("-fx-background-color:white;-fx-background-radius:12;-fx-effect:dropshadow(gaussian,rgba(0,0,0,0.12),16,0,0,4);");
+        card.getStyleClass().add("login-card");
 
         Label title = new Label("PHÒNG KHÁM TƯ NHÂN");
-        title.setFont(Font.font("System", FontWeight.BOLD, 20));
-        title.setTextFill(Color.web("#1a365d"));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        title.getStyleClass().add("login-title");
         Label sub = new Label(" Đăng nhập hệ thống");
-        sub.setTextFill(Color.GRAY);
+        sub.getStyleClass().add("login-subtitle");
 
         TextField user = new TextField();
         user.setPromptText("Tên đăng nhập");
@@ -52,14 +52,13 @@ public class LoginView {
         pass.setMaxWidth(300);
 
         Label err = new Label();
-        err.setTextFill(Color.web("#e53e3e"));
+        err.getStyleClass().add("login-error");
         err.setWrapText(true);
         err.setMaxWidth(300);
 
-        Button btn = new Button("Đăng nhập");
+        Button btn = UI.teal("Đăng nhập");
         btn.setPrefHeight(42);
         btn.setPrefWidth(300);
-        btn.setStyle("-fx-background-color:#0d9488;-fx-text-fill:white;-fx-font-weight:bold;-fx-background-radius:6;-fx-cursor:hand;");
         btn.setDefaultButton(true);
         btn.setOnAction(e -> {
             String u = user.getText().trim();
@@ -85,8 +84,8 @@ public class LoginView {
         });
 
         Label hint = new Label("Vui lòng nhập tên và mật khẩu được cấp");
-        hint.setTextFill(Color.GRAY);
-        hint.setFont(Font.font(11));
+        hint.getStyleClass().add("login-hint");
+        hint.setFont(Font.font("Segoe UI", 11));
 
         card.getChildren().addAll(title, sub, user, pass, err, btn, hint);
         root.setCenter(new StackPane(card));

@@ -16,18 +16,22 @@ public class ThuocView {
     private static final String THUOC_MOI = "Thuốc mới...";
 
     public static Node khoThuoc() {
-        VBox root = new VBox(16);
+        VBox root = new VBox(10);
+        Label stockCount = UI.badge("0 mặt hàng");
         TableView<Map<String, Object>> table = UI.table(
                 "MaThuoc:Mã:80", "TenThuoc:Tên thuốc:180", "DonVi:Đơn vị:70",
                 "GiaBan:Giá bán:100", "SoLuongTon:Tồn kho:90");
-        Runnable load = () -> UI.loadTable(table, DB.query("SELECT * FROM Thuoc ORDER BY MaThuoc"));
+        Runnable load = () -> {
+            List<Map<String, Object>> rows = DB.query("SELECT * FROM Thuoc ORDER BY MaThuoc");
+            UI.loadTable(table, rows);
+            stockCount.setText(rows.size() + " mặt hàng");
+        };
         load.run();
 
         Button btnAdd = UI.teal("+ Thêm thuốc");
         btnAdd.setOnAction(e -> themThuoc(load));
 
-        Button btnXoa = new Button("Xóa");
-        btnXoa.setStyle("-fx-background-color:#ef4444;-fx-text-fill:white;-fx-background-radius:6;-fx-cursor:hand;");
+        Button btnXoa = UI.danger("Xóa");
         btnXoa.setOnAction(e -> {
             Map<String, Object> sel = table.getSelectionModel().getSelectedItem();
             if (sel == null) return;
@@ -36,8 +40,12 @@ public class ThuocView {
             } else UI.error("Không xóa được (có thể đang dùng trong đơn thuốc)!");
         });
 
-        root.getChildren().addAll(UI.header("QUẢN LÝ KHO THUỐC (TV4)", btnAdd, btnXoa), table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+        VBox tablePanel = UI.tablePanel(table);
+        root.getChildren().addAll(
+                UI.pageHeading("Kho thuốc", stockCount),
+                UI.toolbar(btnAdd, btnXoa),
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 
@@ -194,10 +202,12 @@ public class ThuocView {
         cbN.setOnAction(e -> load.run());
         load.run();
 
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("THỐNG KÊ BỆNH THEO THÁNG (TV4)", new Label("Tháng:"), cbT, new Label("/"), cbN),
-                table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                UI.pageHeading("Thống kê bệnh theo tháng"),
+                UI.toolbar(new Label("Tháng:"), cbT, new Label("/"), cbN),
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 }

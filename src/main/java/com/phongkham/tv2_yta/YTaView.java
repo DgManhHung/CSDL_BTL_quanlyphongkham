@@ -25,24 +25,27 @@ public class YTaView {
         TabPane tabs = new TabPane();
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         Runnable[] refreshPayroll = {() -> {}};
+        Label staffCount = UI.badge("0 nhân sự");
         tabs.getTabs().addAll(
-                new Tab("Danh sách Y tá", danhSachYTa(() -> refreshPayroll[0].run())),
-                new Tab("Tính lương theo tháng", tinhLuong(load -> refreshPayroll[0] = load)));
-        VBox root = new VBox(tabs);
+                new Tab("Danh sách", danhSachYTa(() -> refreshPayroll[0].run(), staffCount)),
+                new Tab("Tính lương", tinhLuong(load -> refreshPayroll[0] = load)));
+        VBox root = new VBox(10, UI.pageHeading("Y tá", staffCount), tabs);
         VBox.setVgrow(tabs, Priority.ALWAYS);
         return root;
     }
 
     public static Node danhSachYTa() {
-        return danhSachYTa(() -> {});
+        Label staffCount = UI.badge("0 nhân sự");
+        VBox content = danhSachYTa(() -> {}, staffCount);
+        content.getChildren().add(0, UI.pageHeading("Y tá", staffCount));
+        return content;
     }
 
-    private static Node danhSachYTa(Runnable onChanged) {
-        VBox root = new VBox(16);
-        root.setPadding(new Insets(12, 0, 0, 0));
+    private static VBox danhSachYTa(Runnable onChanged, Label staffCount) {
+        VBox root = new VBox(10);
         TextField search = new TextField();
-        search.setPromptText("Tìm mã / tên / CMT / SĐT...");
-        search.setPrefWidth(260);
+        search.setPromptText("⌕  Tìm theo tên, mã, CMT, SĐT...");
+        search.setPrefWidth(280);
 
         TableView<Map<String, Object>> table = UI.table(
                 "MaNV:Mã YT:80", "HoTen:Họ tên:150", "CMT:CMT:120", "NgaySinh:Ngày sinh:100",
@@ -56,40 +59,46 @@ public class YTaView {
                 """;
         Runnable load = () -> {
             String kw = search.getText().trim();
+            List<Map<String, Object>> rows;
             if (kw.isEmpty()) {
-                UI.loadTable(table, DB.query(selectNurses + " ORDER BY MaNV"));
+                rows = DB.query(selectNurses + " ORDER BY MaNV");
             } else {
                 String k = "%" + kw + "%";
-                UI.loadTable(table, DB.query(
+                rows = DB.query(
                         selectNurses + " WHERE MaNV LIKE ? OR HoTen LIKE ? OR CMT LIKE ? " +
-                        "OR SDT LIKE ? OR DiaChi LIKE ? ORDER BY MaNV", k, k, k, k, k));
+                        "OR SDT LIKE ? OR DiaChi LIKE ? ORDER BY MaNV", k, k, k, k, k);
             }
+            UI.loadTable(table, rows);
+            staffCount.setText(rows.size() + " nhân sự");
         };
         search.setOnAction(e -> load.run());
         load.run();
 
-        Button btnSearch = UI.teal("Tìm");
+        Button btnSearch = new Button("⚲");
+        btnSearch.getStyleClass().add("filter-button");
+        btnSearch.setAccessibleText("Lọc danh sách y tá");
         btnSearch.setOnAction(e -> load.run());
         Button btnAdd = UI.teal("+ Thêm Y tá");
         btnAdd.setOnAction(e -> formYTa(null, load, onChanged));
-        Button btnEdit = UI.teal("Sửa");
+        Button btnEdit = new Button("✎  Sửa");
+        btnEdit.getStyleClass().add("secondary-button");
         btnEdit.setOnAction(e -> {
             Map<String, Object> selected = table.getSelectionModel().getSelectedItem();
             if (selected == null) { UI.alert("Chọn y tá cần sửa!"); return; }
             formYTa(selected, load, onChanged);
         });
-        Button btnDelete = UI.teal("Xóa");
-        btnDelete.setStyle(btnDelete.getStyle().replace("#0d9488", "#dc2626"));
+        Button btnDelete = UI.danger("▣  Xóa");
         btnDelete.setOnAction(e -> {
             Map<String, Object> selected = table.getSelectionModel().getSelectedItem();
             if (selected == null) { UI.alert("Chọn y tá cần xóa!"); return; }
             xoaYTa(UI.str(selected.get("MaNV")), UI.str(selected.get("HoTen")), load, onChanged);
         });
 
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("QUẢN LÝ Y TÁ (TV2)", search, btnSearch, btnAdd, btnEdit, btnDelete),
-                table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                UI.toolbar(search, btnSearch, btnAdd, btnEdit, btnDelete),
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 
@@ -98,8 +107,7 @@ public class YTaView {
     }
 
     private static Node tinhLuong(Consumer<Runnable> registerReload) {
-        VBox root = new VBox(16);
-        root.setPadding(new Insets(12, 0, 0, 0));
+        VBox root = new VBox(10);
         ComboBox<Integer> cbT = new ComboBox<>(FXCollections.observableArrayList(1,2,3,4,5,6,7,8,9,10,11,12));
         cbT.setValue(LocalDate.now().getMonthValue());
         ComboBox<Integer> cbN = new ComboBox<>(FXCollections.observableArrayList(2024,2025,2026,2027));
@@ -152,15 +160,17 @@ public class YTaView {
         load.run();
         registerReload.accept(load);
 
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("TÍNH LƯƠNG Y TÁ (TV2)", new Label("Tháng:"), cbT, new Label("/"), cbN),
-                cards, table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                UI.pageHeading("Tính lương Y tá"),
+                UI.toolbar(new Label("Tháng:"), cbT, new Label("/"), cbN),
+                cards, tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 
     public static Node phanCong() {
-        VBox root = new VBox(12);
+        VBox root = new VBox(10);
         DatePicker dpTuNgay = new DatePicker();
         dpTuNgay.setPromptText("Từ ngày");
         DatePicker dpDenNgay = new DatePicker();
@@ -253,12 +263,13 @@ public class YTaView {
         HBox locNgay = new HBox(10,
                 new Label("Từ ngày:"), dpTuNgay,
                 new Label("Đến ngày:"), dpDenNgay,
-                btnXoaLoc);
+                btnXoaLoc, btnAdd);
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("THEO DÕI CHĂM SÓC (TV2)", btnAdd),
-                locNgay,
-                table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                UI.pageHeading("Theo dõi chăm sóc"),
+                UI.toolbar(locNgay),
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 

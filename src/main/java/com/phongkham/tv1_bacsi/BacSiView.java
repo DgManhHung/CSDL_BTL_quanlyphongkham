@@ -31,15 +31,16 @@ public class BacSiView {
 
     /** Màn hình chính của TV1: 2 tab (Danh sách Bác sĩ / Tính lương). */
     public static Node luongBacSi() {
-        VBox root = new VBox(16);
+        VBox root = new VBox(10);
         TabPane tabs = new TabPane();
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        Label staffCount = UI.badge("0 nhân sự");
 
-        Tab tabDs = new Tab("Danh sách Bác sĩ", danhSachBS());
-        Tab tabLuong = new Tab("Tính lương theo tháng", tinhLuong());
+        Tab tabDs = new Tab("Danh sách", danhSachBS(staffCount));
+        Tab tabLuong = new Tab("Tính lương", tinhLuong());
         tabs.getTabs().addAll(tabDs, tabLuong);
 
-        root.getChildren().add(tabs);
+        root.getChildren().addAll(UI.pageHeading("Bác sĩ", staffCount), tabs);
         VBox.setVgrow(tabs, Priority.ALWAYS);
         return root;
     }
@@ -48,12 +49,18 @@ public class BacSiView {
     //  TAB 1: CRUD BÁC SĨ
     // =====================================================================
     public static Node danhSachBS() {
-        VBox root = new VBox(16);
-        root.setPadding(new Insets(12, 0, 0, 0));
+        Label staffCount = UI.badge("0 nhân sự");
+        VBox root = danhSachBS(staffCount);
+        root.getChildren().add(0, UI.pageHeading("Bác sĩ", staffCount));
+        return root;
+    }
+
+    private static VBox danhSachBS(Label staffCount) {
+        VBox root = new VBox(10);
 
         TextField search = new TextField();
-        search.setPromptText("Tìm mã / tên / CMT / chuyên môn...");
-        search.setPrefWidth(260);
+        search.setPromptText("⌕  Tìm theo tên, mã, CMT, chuyên môn...");
+        search.setPrefWidth(280);
 
         TableView<Map<String, Object>> table = UI.table(
                 "MaBS:Mã BS:70", "HoTen:Họ tên:150", "CMT:CMT:110", "NgaySinh:Ngày sinh:95",
@@ -67,40 +74,46 @@ public class BacSiView {
                 """;
         Runnable load = () -> {
             String kw = search.getText().trim();
+            List<Map<String, Object>> rows;
             if (kw.isEmpty()) {
-                UI.loadTable(table, DB.query(selectDoctors + " ORDER BY MaBS"));
+                rows = DB.query(selectDoctors + " ORDER BY MaBS");
             } else {
                 String k = "%" + kw + "%";
-                UI.loadTable(table, DB.query(
+                rows = DB.query(
                         selectDoctors + " WHERE MaBS LIKE ? OR HoTen LIKE ? OR CMT LIKE ? " +
-                        "OR ChuyenMon LIKE ? OR DiaChi LIKE ? ORDER BY MaBS", k, k, k, k, k));
+                        "OR ChuyenMon LIKE ? OR DiaChi LIKE ? ORDER BY MaBS", k, k, k, k, k);
             }
+            UI.loadTable(table, rows);
+            staffCount.setText(rows.size() + " nhân sự");
         };
         search.setOnAction(e -> load.run());
         load.run();
 
-        Button btnSearch = UI.teal("Tìm");
+        Button btnSearch = new Button("⚲");
+        btnSearch.getStyleClass().add("filter-button");
+        btnSearch.setAccessibleText("Lọc danh sách bác sĩ");
         btnSearch.setOnAction(e -> load.run());
         Button btnAdd = UI.teal("+ Thêm Bác sĩ");
         btnAdd.setOnAction(e -> formBS(null, load));
-        Button btnEdit = UI.teal("Sửa");
+        Button btnEdit = new Button("✎  Sửa");
+        btnEdit.getStyleClass().add("secondary-button");
         btnEdit.setOnAction(e -> {
             Map<String, Object> sel = table.getSelectionModel().getSelectedItem();
             if (sel == null) { UI.alert("Chọn bác sĩ cần sửa!"); return; }
             formBS(sel, load);
         });
-        Button btnDel = UI.teal("Xóa");
-        btnDel.setStyle(btnDel.getStyle().replace("#0d9488", "#dc2626"));
+        Button btnDel = UI.danger("Xóa");
         btnDel.setOnAction(e -> {
             Map<String, Object> sel = table.getSelectionModel().getSelectedItem();
             if (sel == null) { UI.alert("Chọn bác sĩ cần xóa!"); return; }
             xoaBS(UI.str(sel.get("MaBS")), UI.str(sel.get("HoTen")), load);
         });
 
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("QUẢN LÝ BÁC SĨ (TV1)", search, btnSearch, btnAdd, btnEdit, btnDel),
-                table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                UI.toolbar(search, btnSearch, btnAdd, btnEdit, btnDel),
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 
@@ -222,8 +235,7 @@ public class BacSiView {
     //  TAB 2: TÍNH LƯƠNG THEO THÁNG
     // =====================================================================
     public static Node tinhLuong() {
-        VBox root = new VBox(16);
-        root.setPadding(new Insets(12, 0, 0, 0));
+        VBox root = new VBox(10);
 
         ComboBox<Integer> cbT = new ComboBox<>(FXCollections.observableArrayList(1,2,3,4,5,6,7,8,9,10,11,12));
         cbT.setValue(LocalDate.now().getMonthValue());
@@ -283,10 +295,12 @@ public class BacSiView {
                 + " × số bệnh nhân chữa khỏi 1 loại bệnh trong tháng");
         note.setTextFill(javafx.scene.paint.Color.GRAY);
 
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("TÍNH LƯƠNG BÁC SĨ (TV1)", new Label("Tháng:"), cbT, new Label("/"), cbN, btnCT),
-                note, cards, table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                UI.pageHeading("Tính lương Bác sĩ"),
+                UI.toolbar(new Label("Tháng:"), cbT, new Label("/"), cbN, btnCT),
+                note, cards, tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 

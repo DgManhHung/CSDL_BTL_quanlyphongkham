@@ -3,6 +3,7 @@ package com.phongkham.app;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.phongkham.shared.DB;
@@ -17,6 +18,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
+import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -24,8 +27,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
 /**
@@ -50,22 +51,23 @@ public class MainShell {
 
     private void build() {
         VBox sidebar = new VBox(4);
-        sidebar.setPrefWidth(235);
-        sidebar.setStyle("-fx-background-color:#1e293b;");
+        sidebar.setPrefWidth(220);
+        sidebar.getStyleClass().add("sidebar");
         sidebar.setPadding(new Insets(20, 12, 20, 12));
 
-        Label brand = new Label("PHÒNG KHÁM");
-        brand.setFont(Font.font("System", FontWeight.BOLD, 16));
-        brand.setTextFill(Color.WHITE);
-        Label sub = new Label(" QUẢN LÝ");
-        sub.setTextFill(Color.web("#94a3b8"));
-        sub.setFont(Font.font(11));
-        VBox brandBox = new VBox(2, brand, sub);
-        brandBox.setPadding(new Insets(0, 0, 18, 8));
+        Label logo = new Label("✚");
+        logo.getStyleClass().add("clinic-logo");
+        Label brand = new Label("QUẢN LÝ\nPHÒNG KHÁM");
+        brand.getStyleClass().add("clinic-brand");
+        VBox brandText = new VBox(brand);
+        HBox brandBox = new HBox(10, logo, brandText);
+        brandBox.setAlignment(Pos.CENTER_LEFT);
+        brandBox.setPadding(new Insets(0, 0, 18, 4));
         sidebar.getChildren().add(brandBox);
 
         // ---- Menu theo thành viên ----
         addMenu(sidebar, "Dashboard", () -> show("Dashboard"));
+        style(btns.get("Dashboard"), true);
 
         Label tv1 = section("Bác sĩ");
         sidebar.getChildren().add(tv1);
@@ -96,35 +98,40 @@ public class MainShell {
         sidebar.getChildren().add(spacer);
 
         Label userLbl = new Label("👤  " + username);
+        userLbl.getStyleClass().add("sidebar-user");
         userLbl.setTextFill(Color.web("#94a3b8"));
         userLbl.setPadding(new Insets(8));
         Button logout = new Button("Đăng xuất");
+        logout.getStyleClass().add("logout-button");
         logout.setMaxWidth(Double.MAX_VALUE);
-        logout.setStyle("-fx-background-color:#334155;-fx-text-fill:white;-fx-background-radius:6;-fx-cursor:hand;");
         logout.setOnAction(e -> {
             javafx.scene.Scene s = new javafx.scene.Scene(new LoginView(stage).getRoot(), 1100, 700);
             var css = getClass().getResource("/app.css");
             if (css != null) s.getStylesheets().add(css.toExternalForm());
             stage.setScene(s);
         });
-        sidebar.getChildren().addAll(userLbl, logout);
+        Separator separator = new Separator();
+        separator.getStyleClass().add("sidebar-separator");
+        sidebar.getChildren().addAll(separator, userLbl, logout);
 
         root.setLeft(sidebar);
-        content.setStyle("-fx-background-color:#f8fafc;");
+        content.getStyleClass().add("main-content");
         content.setPadding(new Insets(24));
         root.setCenter(content);
     }
 
     private Label section(String text) {
-        Label l = new Label(text);
-        l.setTextFill(Color.web("#64748b"));
-        l.setFont(Font.font(10));
+        Label l = new Label(text.toUpperCase(Locale.ROOT));
+        l.getStyleClass().add("sidebar-section");
         l.setPadding(new Insets(12, 0, 2, 8));
         return l;
     }
 
     private void addMenu(VBox sidebar, String text, Runnable action) {
-        Button btn = new Button("  " + text);
+        Label icon = new Label(menuIcon(text));
+        icon.getStyleClass().add("menu-icon");
+        Button btn = new Button(text, icon);
+        btn.getStyleClass().add("menu-item");
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setAlignment(Pos.CENTER_LEFT);
         btn.setPrefHeight(38);
@@ -139,10 +146,24 @@ public class MainShell {
     }
 
     private void style(Button btn, boolean on) {
-        if (on)
-            btn.setStyle("-fx-background-color:#14b8a6;-fx-text-fill:white;-fx-font-weight:bold;-fx-background-radius:8;-fx-cursor:hand;");
-        else
-            btn.setStyle("-fx-background-color:transparent;-fx-text-fill:#cbd5e1;-fx-background-radius:8;-fx-cursor:hand;");
+        btn.getStyleClass().remove("menu-item-active");
+        if (on) btn.getStyleClass().add("menu-item-active");
+    }
+
+    private String menuIcon(String text) {
+        return switch (text) {
+            case "Dashboard" -> "⌂";
+            case "Quản lý Bác sĩ" -> "⚕";
+            case "Quản lý Y tá" -> "✚";
+            case "Theo dõi Chăm sóc" -> "♡";
+            case "Quản lý Bệnh nhân" -> "♙";
+            case "Lịch sử khám bệnh" -> "◷";
+            case "Quản lý Thuốc" -> "⚕";
+            case "Thống kê Bệnh" -> "▤";
+            case "Quản lý Hóa đơn" -> "▧";
+            case "Báo cáo Doanh thu" -> "▥";
+            default -> "•";
+        };
     }
 
     private void show(String page) {
@@ -161,27 +182,92 @@ public class MainShell {
     }
 
     private VBox dashboard() {
-        VBox root = new VBox(20);
+        VBox root = new VBox(16);
         int t = LocalDate.now().getMonthValue(), n = LocalDate.now().getYear();
         try {
             List<Map<String, Object>> dt = DB.query("""
                 SELECT COALESCE(SUM(TongTien),0) TongDT, COUNT(*) SoHD,
-                       SUM(CASE WHEN TrangThai='ChuaThanhToan' THEN TongTien ELSE 0 END) ChuaThu
+                       COALESCE(SUM(CASE WHEN TrangThai IN ('ChuaThanhToan','Chưa Thanh Toán')
+                                         THEN TongTien ELSE 0 END),0) ChuaThu
                 FROM HoaDon WHERE MONTH(NgayLap)=? AND YEAR(NgayLap)=? AND TrangThai!='Huy'
                 """, t, n);
             Map<String, Object> m = dt.get(0);
-            root.getChildren().add(UI.title("DASHBOARD"));
-            root.getChildren().add(new HBox(16,
+
+            List<Map<String, Object>> operational = DB.query("""
+                SELECT COUNT(*) AS SoLanKham,
+                       (SELECT COUNT(*) FROM BenhNhan
+                        WHERE MONTH(NgayDangKy)=? AND YEAR(NgayDangKy)=?) AS BenhNhanMoi
+                FROM LanKham WHERE MONTH(NgayVao)=? AND YEAR(NgayVao)=?
+                """, t, n, t, n);
+            Map<String, Object> counts = operational.get(0);
+
+            Label period = UI.badge("Tháng " + t + "/" + n);
+            root.getChildren().add(UI.pageHeading("Tổng quan", period));
+            root.getChildren().add(new HBox(12,
                     UI.card("Doanh thu tháng", UI.MONEY.format(m.get("TongDT")) + " đ", "#0d9488"),
                     UI.card("Số hóa đơn", UI.str(m.get("SoHD")), "#0284c7"),
-                    UI.card("Tiền chưa thu", UI.MONEY.format(m.get("ChuaThu")) + " đ", "#ea580c")
+                    UI.card("Tiền chưa thu", UI.MONEY.format(m.get("ChuaThu")) + " đ", "#ea580c"),
+                    UI.card("Lượt khám tháng", UI.str(counts.get("SoLanKham")), "#7c3aed"),
+                    UI.card("Bệnh nhân mới", UI.str(counts.get("BenhNhanMoi")), "#0369a1")
             ));
-            Label hint = new Label("Menu chia theo thành viên TV1→TV5. Chọn mục bên trái để vào từng phân hệ.");
-            hint.setTextFill(Color.GRAY);
-            root.getChildren().add(hint);
+
+            TableView<Map<String, Object>> recentVisits = UI.table(
+                    "MaLanKham:Mã lần khám:100", "TenBN:Bệnh nhân:150", "TenBS:Bác sĩ:140",
+                    "TenBenh:Chẩn đoán:160", "NgayVao:Ngày khám:110", "TrangThai:Trạng thái:130");
+            UI.loadTable(recentVisits, DB.query("""
+                SELECT lk.MaLanKham, bn.HoTen AS TenBN, bs.HoTen AS TenBS,
+                       dm.TenBenh, lk.NgayVao, lk.TrangThai
+                FROM LanKham lk
+                JOIN BenhNhan bn ON lk.MaBN=bn.MaBN
+                JOIN BacSi bs ON lk.MaBS=bs.MaBS
+                JOIN DanhMucBenh dm ON lk.MaBenh=dm.MaBenh
+                ORDER BY lk.NgayVao DESC, lk.MaLanKham DESC
+                LIMIT 14
+                """));
+
+            TableView<Map<String, Object>> commonConditions = UI.table(
+                    "TenBenh:Bệnh thường gặp:200", "SoLanKham:Lượt khám:90");
+            UI.loadTable(commonConditions, DB.query("""
+                SELECT dm.TenBenh, COUNT(*) AS SoLanKham
+                FROM LanKham lk
+                JOIN DanhMucBenh dm ON lk.MaBenh=dm.MaBenh
+                WHERE MONTH(lk.NgayVao)=? AND YEAR(lk.NgayVao)=?
+                GROUP BY dm.MaBenh, dm.TenBenh
+                ORDER BY SoLanKham DESC, dm.TenBenh
+                LIMIT 5
+                """, t, n));
+
+            VBox recentSection = new VBox(8,
+                    sectionTitle("Lượt khám gần đây", "14 lượt mới nhất"),
+                    UI.tablePanel(recentVisits));
+            recentSection.getStyleClass().add("dashboard-section");
+            VBox conditionSection = new VBox(8,
+                    sectionTitle("Bệnh thường gặp", "Trong tháng này"),
+                    UI.tablePanel(commonConditions));
+            conditionSection.getStyleClass().add("dashboard-section");
+            HBox details = new HBox(14, recentSection, conditionSection);
+            details.getStyleClass().add("dashboard-details");
+            HBox.setHgrow(recentSection, Priority.ALWAYS);
+            HBox.setHgrow(conditionSection, Priority.ALWAYS);
+            recentSection.setMaxWidth(Double.MAX_VALUE);
+            conditionSection.setMaxWidth(360);
+            VBox.setVgrow(details, Priority.ALWAYS);
+            root.getChildren().add(details);
         } catch (Exception e) {
             root.getChildren().add(new Label("Lỗi DB: " + e.getMessage()));
         }
         return root;
+    }
+
+    private HBox sectionTitle(String title, String subtitle) {
+        Label heading = new Label(title);
+        heading.getStyleClass().add("dashboard-section-title");
+        Label detail = new Label(subtitle);
+        detail.getStyleClass().add("dashboard-section-subtitle");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox row = new HBox(8, heading, spacer, detail);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
     }
 }

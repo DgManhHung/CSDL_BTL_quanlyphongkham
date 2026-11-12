@@ -21,7 +21,7 @@ import java.util.*;
 public class DoanhThuView {
 
     public static Node baoCao(String username) {
-        VBox root = new VBox(16);
+        VBox root = new VBox(10);
         ComboBox<Integer> cbT = new ComboBox<>(FXCollections.observableArrayList(1,2,3,4,5,6,7,8,9,10,11,12));
         cbT.setValue(LocalDate.now().getMonthValue());
         ComboBox<Integer> cbN = new ComboBox<>(FXCollections.observableArrayList(2024,2025,2026,2027));
@@ -60,17 +60,19 @@ public class DoanhThuView {
         cbN.setOnAction(e -> load.run());
         load.run();
 
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("BÁO CÁO DOANH THU", new Label("Tháng:"), cbT, new Label("/"), cbN),
+                UI.pageHeading("Báo cáo doanh thu"),
+                UI.toolbar(new Label("Tháng:"), cbT, new Label("/"), cbN),
                 cards,
                 new Label("Doanh thu theo Bác sĩ") {{ setStyle("-fx-font-weight:bold;-fx-font-size:14;"); }},
-                table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 
     public static Node hoaDon(String username) {
-        VBox root = new VBox(12);
+        VBox root = new VBox(10);
 
         ComboBox<String> cbFilter = new ComboBox<>(FXCollections.observableArrayList(
                 "Tất cả", "Chưa Thanh Toán", "Đã Thanh Toán"));
@@ -177,11 +179,12 @@ public class DoanhThuView {
                 new Label("Từ ngày:"), dpTuNgay,
                 new Label("Đến ngày:"), dpDenNgay,
                 btnXoaLoc);
+        VBox tablePanel = UI.tablePanel(table);
         root.getChildren().addAll(
-                UI.header("QUẢN LÝ HÓA ĐƠN", new Label("Trạng thái:"), cbFilter, btnTao, btnTT),
-                locNgay,
-                table);
-        VBox.setVgrow(table, Priority.ALWAYS);
+                UI.pageHeading("Quản lý hóa đơn"),
+                UI.toolbar(new Label("Trạng thái:"), cbFilter, locNgay, btnTao, btnTT),
+                tablePanel);
+        VBox.setVgrow(tablePanel, Priority.ALWAYS);
         return root;
     }
 
