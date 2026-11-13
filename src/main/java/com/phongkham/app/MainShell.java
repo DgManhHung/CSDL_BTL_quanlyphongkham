@@ -226,14 +226,14 @@ public class MainShell {
                 """));
 
             TableView<Map<String, Object>> commonConditions = UI.table(
-                    "TenBenh:Bệnh thường gặp:200", "SoLanKham:Lượt khám:90");
+                    "TenBenh:Bệnh thường gặp:200", "SoDotMac:Số đợt mắc:90");
             UI.loadTable(commonConditions, DB.query("""
-                SELECT dm.TenBenh, COUNT(*) AS SoLanKham
-                FROM LanKham lk
-                JOIN DanhMucBenh dm ON lk.MaBenh=dm.MaBenh
+                SELECT d.TenBenh, COUNT(DISTINCT d.MaDotDieuTri) AS SoDotMac
+                FROM V_DotDieuTri d
+                JOIN LanKham lk ON lk.MaDotDieuTri=d.MaDotDieuTri
                 WHERE MONTH(lk.NgayVao)=? AND YEAR(lk.NgayVao)=?
-                GROUP BY dm.MaBenh, dm.TenBenh
-                ORDER BY SoLanKham DESC, dm.TenBenh
+                GROUP BY d.MaBenh, d.TenBenh
+                ORDER BY SoDotMac DESC, d.TenBenh
                 LIMIT 5
                 """, t, n));
 

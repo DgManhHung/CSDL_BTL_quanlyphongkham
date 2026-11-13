@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 /**
  * ========== TV2: Y TÁ & TÍNH LƯƠNG ==========
  * - Danh sách, tìm kiếm và quản lý Y tá
- * - Lương cơ bản theo trình độ, thâm niên; phụ cấp gồm 10% lương cơ bản và 200.000/lượt hỗ trợ
+ * - Lương tháng: 5.000.000 đồng + 200.000 đồng cho mỗi lượt hỗ trợ
  * - Phân công chăm sóc
  */
 public class YTaView {
@@ -48,12 +48,13 @@ public class YTaView {
         search.setPrefWidth(280);
 
         TableView<Map<String, Object>> table = UI.table(
-                "MaNV:Mã YT:80", "HoTen:Họ tên:150", "CMT:CMT:120", "NgaySinh:Ngày sinh:100",
-                "DiaChi:Địa chỉ:170", "SDT:SĐT:110", "NgayVaoLam:Ngày vào làm:110",
+                "MaNV:Mã YT:80", "HoTen:Họ tên:150", "GioiTinh:Giới tính:80",
+                "CMT:CMT:120", "NgaySinh:Ngày sinh:100", "DiaChi:Địa chỉ:170",
+                "SDT:SĐT:110", "Email:Email:180", "NgayVaoLam:Ngày vào làm:110",
                 "TrinhDo:Trình độ:100", "ThamNien:Thâm niên:90");
 
         String selectNurses = """
-                SELECT MaNV,CMT,HoTen,TrinhDo,NgaySinh,DiaChi,SDT,NgayVaoLam,
+                SELECT MaNV,CMT,HoTen,GioiTinh,TrinhDo,NgaySinh,DiaChi,SDT,Email,NgayVaoLam,
                        TIMESTAMPDIFF(YEAR,NgayVaoLam,CURDATE()) AS ThamNien
                 FROM YTa
                 """;
@@ -121,33 +122,27 @@ public class YTaView {
         TableView<Map<String, Object>> table = UI.table(
                 "MaNV:Mã YT:70", "HoTen:Họ tên:140", "SDT:SĐT:100", "TrinhDo:Trình độ:90",
                 "ThamNien:Thâm niên:80", "LuongCB:Lương CB:100", "SoLuotHT:Số lượt:70",
-                "PhuCap:Phụ cấp:100", "TongLuong:Tổng lương:120");
+                "PhuCap:Thưởng hỗ trợ:110", "TongLuong:Tổng lương:120");
 
         Runnable load = () -> {
+            LocalDate from = LocalDate.of(cbN.getValue(), cbT.getValue(), 1);
+            LocalDate until = from.plusMonths(1);
+            LocalDate today = LocalDate.now();
+            if (from.getYear() == today.getYear() && from.getMonth() == today.getMonth()) {
+                until = today.plusDays(1);
+            }
             List<Map<String, Object>> data = DB.query("""
-                SELECT s.MaNV, s.HoTen, s.SDT, s.TrinhDo, s.ThamNien, s.LuongCB, s.SoLuotHT,
-                       s.LuongCB*0.10+s.SoLuotHT*200000 AS PhuCap,
-                       s.LuongCB*1.10+s.SoLuotHT*200000 AS TongLuong
-                FROM (
-                    SELECT t.*,
-                           CASE t.TrinhDo
-                               WHEN 'Trung cấp' THEN 5000000
-                               WHEN 'Cao đẳng' THEN 5500000
-                               WHEN 'Cử nhân' THEN 6000000
-                               ELSE 5000000
-                           END + t.ThamNien*200000 AS LuongCB
-                    FROM (
-                        SELECT y.MaNV, y.HoTen, y.SDT, y.TrinhDo,
-                               TIMESTAMPDIFF(YEAR,y.NgayVaoLam,CURDATE()) AS ThamNien,
-                               COUNT(pc.MaPC) AS SoLuotHT
-                        FROM YTa y
-                        LEFT JOIN PhanCongYT pc ON y.MaNV=pc.MaNV
-                            AND MONTH(pc.NgayPhanCong)=? AND YEAR(pc.NgayPhanCong)=?
-                        GROUP BY y.MaNV, y.HoTen, y.SDT, y.TrinhDo, y.NgayVaoLam
-                    ) t
-                ) s
-                ORDER BY s.MaNV
-                """, cbT.getValue(), cbN.getValue());
+                SELECT y.MaNV, y.HoTen, y.SDT, y.TrinhDo,
+                       TIMESTAMPDIFF(YEAR,y.NgayVaoLam,CURDATE()) AS ThamNien,
+                       5000000 AS LuongCB, COUNT(pc.MaPC) AS SoLuotHT,
+                       COUNT(pc.MaPC)*200000 AS PhuCap,
+                       5000000 + COUNT(pc.MaPC)*200000 AS TongLuong
+                FROM YTa y
+                LEFT JOIN V_LuotHoTroYTa pc ON pc.MaNV=y.MaNV
+                    AND pc.NgayPhanCong>=? AND pc.NgayPhanCong<?
+                GROUP BY y.MaNV, y.HoTen, y.SDT, y.TrinhDo, y.NgayVaoLam
+                ORDER BY y.MaNV
+                """, java.sql.Date.valueOf(from), java.sql.Date.valueOf(until));
             UI.loadTable(table, data);
             UI.setCardValue(c1, data.size() + " người");
             long luot = data.stream().mapToLong(m -> UI.toLong(m.get("SoLuotHT"))).sum();
@@ -282,8 +277,12 @@ public class YTaView {
         tfMa.setEditable(false);
         TextField tfCMT = new TextField(edit ? UI.str(old.get("CMT")) : "");
         TextField tfHoTen = new TextField(edit ? UI.str(old.get("HoTen")) : "");
+        ComboBox<String> cbGioiTinh = new ComboBox<>(
+                FXCollections.observableArrayList("Nam", "Nữ"));
+        cbGioiTinh.setValue(edit ? UI.str(old.get("GioiTinh")) : null);
         ComboBox<String> cbTrinhDo = new ComboBox<>(
-                FXCollections.observableArrayList("Trung cấp", "Cao đẳng", "Cử nhân"));
+                FXCollections.observableArrayList("Trung cấp", "Cao đẳng", "Cử nhân",
+                        "Đại học", "Thạc sĩ", "Tiến sĩ"));
         cbTrinhDo.setValue(edit ? UI.str(old.get("TrinhDo")) : "Trung cấp");
         DatePicker dpNgayVaoLam = new DatePicker(edit && old.get("NgayVaoLam") != null
                 ? LocalDate.parse(UI.str(old.get("NgayVaoLam"))) : LocalDate.now());
@@ -296,15 +295,15 @@ public class YTaView {
         TextField tfNgaySinh = new TextField(edit ? UI.str(old.get("NgaySinh")) : "");
         TextField tfDiaChi = new TextField(edit ? UI.str(old.get("DiaChi")) : "");
         TextField tfSDT = new TextField(edit ? UI.str(old.get("SDT")) : "");
+        TextField tfEmail = new TextField(edit ? UI.str(old.get("Email")) : "");
 
         Runnable updatePayPreview = () -> {
             LocalDate ngayVaoLam = dpNgayVaoLam.getValue();
             int thamNien = ngayVaoLam == null ? 0
                     : (int) Math.max(0, ChronoUnit.YEARS.between(ngayVaoLam, LocalDate.now()));
             tfThamNien.setText(thamNien + " năm");
-            long luongCB = luongCoBan(cbTrinhDo.getValue(), thamNien);
-            tfLuongCB.setText(UI.MONEY.format(luongCB) + " đ");
-            tfPhuCap.setText(UI.MONEY.format(luongCB / 10) + " đ");
+            tfLuongCB.setText(UI.MONEY.format(5_000_000) + " đ");
+            tfPhuCap.setText("200.000 đ / lượt");
         };
         cbTrinhDo.setOnAction(e -> updatePayPreview.run());
         dpNgayVaoLam.setOnAction(e -> updatePayPreview.run());
@@ -313,28 +312,35 @@ public class YTaView {
         GridPane g = new GridPane();
         g.setHgap(10); g.setVgap(8); g.setPadding(new Insets(12));
         g.addRow(0, new Label("Mã YT:"), tfMa);
-        g.addRow(1, new Label("CMT:"), tfCMT);
-        g.addRow(2, new Label("Họ tên:"), tfHoTen);
-        g.addRow(3, new Label("Trình độ:"), cbTrinhDo);
-        g.addRow(4, new Label("Ngày vào làm:"), dpNgayVaoLam);
-        g.addRow(5, new Label("Thâm niên hiện tại:"), tfThamNien);
-        g.addRow(6, new Label("Lương cơ bản:"), tfLuongCB);
-        g.addRow(7, new Label("Phụ cấp:"), tfPhuCap);
-        g.addRow(8, new Label("Ngày sinh (yyyy-MM-dd):"), tfNgaySinh);
-        g.addRow(9, new Label("Địa chỉ:"), tfDiaChi);
-        g.addRow(10, new Label("SĐT:"), tfSDT);
+        g.addRow(1, new Label("CMT *:"), tfCMT);
+        g.addRow(2, new Label("Họ tên *:"), tfHoTen);
+        g.addRow(3, new Label("Giới tính *:"), cbGioiTinh);
+        g.addRow(4, new Label("Ngày sinh (yyyy-MM-dd) *:"), tfNgaySinh);
+        g.addRow(5, new Label("SĐT *:"), tfSDT);
+        g.addRow(6, new Label("Email *:"), tfEmail);
+        g.addRow(7, new Label("Địa chỉ *:"), tfDiaChi);
+        g.addRow(8, new Label("Trình độ *:"), cbTrinhDo);
+        g.addRow(9, new Label("Ngày vào làm:"), dpNgayVaoLam);
+        g.addRow(10, new Label("Thâm niên hiện tại:"), tfThamNien);
+        g.addRow(11, new Label("Lương cơ bản:"), tfLuongCB);
+        g.addRow(12, new Label("Thưởng hỗ trợ:"), tfPhuCap);
         d.getDialogPane().setContent(g);
 
         Button ok = (Button) d.getDialogPane().lookupButton(ButtonType.OK);
         ok.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-            if (tfCMT.getText().isBlank() || tfHoTen.getText().isBlank()) {
-                UI.error("CMT và họ tên không được để trống!");
+            if (tfCMT.getText().isBlank() || tfHoTen.getText().isBlank()
+                    || tfNgaySinh.getText().isBlank() || tfDiaChi.getText().isBlank()
+                    || tfSDT.getText().isBlank() || tfEmail.getText().isBlank()) {
+                UI.error("Vui lòng nhập đầy đủ thông tin bắt buộc!");
+                event.consume();
+            } else if (cbGioiTinh.getValue() == null || cbTrinhDo.getValue() == null) {
+                UI.error("Vui lòng chọn giới tính và trình độ!");
                 event.consume();
             } else if (dpNgayVaoLam.getValue() == null
                     || dpNgayVaoLam.getValue().isAfter(LocalDate.now())) {
                 UI.error("Ngày vào làm phải được chọn và không ở tương lai!");
                 event.consume();
-            } else if (!tfNgaySinh.getText().isBlank()) {
+            } else {
                 try {
                     LocalDate.parse(tfNgaySinh.getText().trim());
                 } catch (java.time.format.DateTimeParseException ex) {
@@ -346,22 +352,24 @@ public class YTaView {
 
         d.showAndWait().ifPresent(bt -> {
             if (bt != ButtonType.OK) return;
-            Object ngaySinh = tfNgaySinh.getText().isBlank() ? null : tfNgaySinh.getText().trim();
+            Object ngaySinh = java.sql.Date.valueOf(LocalDate.parse(tfNgaySinh.getText().trim()));
             boolean saved = edit
-                    ? DB.exec("UPDATE YTa SET CMT=?,HoTen=?,TrinhDo=?,NgayVaoLam=?,NgaySinh=?,DiaChi=?,SDT=? WHERE MaNV=?",
-                            tfCMT.getText().trim(), tfHoTen.getText().trim(), cbTrinhDo.getValue(),
-                            java.sql.Date.valueOf(dpNgayVaoLam.getValue()), ngaySinh,
-                            tfDiaChi.getText().trim(), tfSDT.getText().trim(), tfMa.getText())
-                    : DB.exec("INSERT INTO YTa (MaNV,CMT,HoTen,TrinhDo,NgayVaoLam,NgaySinh,DiaChi,SDT) VALUES (?,?,?,?,?,?,?,?)",
-                            tfMa.getText(), tfCMT.getText().trim(), tfHoTen.getText().trim(),
+                    ? DB.exec("UPDATE YTa SET CMT=?,HoTen=?,GioiTinh=?,TrinhDo=?,NgayVaoLam=?,NgaySinh=?,DiaChi=?,SDT=?,Email=? WHERE MaNV=?",
+                            tfCMT.getText().trim(), tfHoTen.getText().trim(), cbGioiTinh.getValue(),
                             cbTrinhDo.getValue(), java.sql.Date.valueOf(dpNgayVaoLam.getValue()), ngaySinh,
-                            tfDiaChi.getText().trim(), tfSDT.getText().trim());
+                            tfDiaChi.getText().trim(), tfSDT.getText().trim(), tfEmail.getText().trim(),
+                            tfMa.getText())
+                    : DB.exec("INSERT INTO YTa (MaNV,CMT,HoTen,GioiTinh,TrinhDo,NgayVaoLam,NgaySinh,DiaChi,SDT,Email) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                            tfMa.getText(), tfCMT.getText().trim(), tfHoTen.getText().trim(),
+                            cbGioiTinh.getValue(), cbTrinhDo.getValue(),
+                            java.sql.Date.valueOf(dpNgayVaoLam.getValue()), ngaySinh,
+                            tfDiaChi.getText().trim(), tfSDT.getText().trim(), tfEmail.getText().trim());
             if (saved) {
                 UI.alert(edit ? "Cập nhật thành công!" : "Thêm Y tá thành công!");
                 reload.run();
                 onChanged.run();
             } else {
-                UI.error("Lỗi lưu dữ liệu! (CMT có thể bị trùng)");
+                UI.error("Lỗi lưu dữ liệu! (CMT, SĐT hoặc email có thể bị trùng)");
             }
         });
     }
@@ -390,12 +398,4 @@ public class YTaView {
         return String.format(Locale.ROOT, "YT%03d", UI.toLong(rows.get(0).get("maxCode")) + 1);
     }
 
-    private static long luongCoBan(String trinhDo, int thamNien) {
-        long theoTrinhDo = switch (trinhDo) {
-            case "Cao đẳng" -> 5_500_000;
-            case "Cử nhân" -> 6_000_000;
-            default -> 5_000_000;
-        };
-        return theoTrinhDo + thamNien * 200_000L;
-    }
 }

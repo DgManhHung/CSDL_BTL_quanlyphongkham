@@ -9,6 +9,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 /**
@@ -34,9 +35,9 @@ public class BenhNhanView {
         search.setPrefWidth(280);
 
         TableView<Map<String, Object>> table = UI.table(
-                "MaBN:Mã BN:80", "HoTen:Họ tên:150", "CMT:CMT:120",
-                "NgaySinh:Ngày sinh:100", "NgayDangKy:Ngày đăng ký:110",
-                "DiaChi:Địa chỉ:200", "SDT:SĐT:110");
+                "MaBN:Mã BN:80", "HoTen:Họ tên:150", "GioiTinh:Giới tính:80",
+                "CMT:CMT:120", "NgaySinh:Ngày sinh:100", "NgayDangKy:Ngày đăng ký:110",
+                "DiaChi:Địa chỉ:200", "SDT:SĐT:110", "Email:Email:180");
 
         Runnable load = () -> {
             String kw = search.getText().trim();
@@ -46,8 +47,8 @@ public class BenhNhanView {
             else {
                 String k = "%" + kw + "%";
                 rows = DB.query(
-                        "SELECT * FROM BenhNhan WHERE HoTen LIKE ? OR CMT LIKE ? OR SDT LIKE ? OR MaBN LIKE ?",
-                        k, k, k, k);
+                    "SELECT * FROM BenhNhan WHERE HoTen LIKE ? OR CMT LIKE ? OR SDT LIKE ? OR Email LIKE ? OR MaBN LIKE ?",
+                    k, k, k, k, k);
             }
             UI.loadTable(table, rows);
             patientCount.setText(rows.size() + " bệnh nhân");
@@ -148,16 +149,34 @@ public class BenhNhanView {
         dlg.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dlg.getDialogPane().setPrefSize(720, 400);
         TableView<Map<String, Object>> t = UI.table(
-                "MaLanKham:Mã LK:90", "TenBenh:Bệnh:120", "TenBS:Bác sĩ:130",
-                "NgayVao:Vào:100", "NgayRa:Ra:100", "TongTienKham:Tiền:100", "TrangThai:TT:100");
+                "MaLanKham:Mã LK:90", "MaDotDieuTri:Mã đợt:110", "TenBenh:Bệnh:120",
+                "LanThuTrongDot:Lần trong đợt:100", "TongLanKhamBenh:Tổng lượt bệnh:110",
+                "TenBS:Bác sĩ:130", "NgayVao:Vào:100", "NgayRa:Ra:100", "ThuocKe:Thuốc kê:180",
+                "HoTroYTa:Y tá hỗ trợ:180", "TongTienKham:Tiền khám:100",
+                "TongTienThuoc:Tiền thuốc:100", "TrangThai:TT:100", "TrangThaiDot:Tình trạng đợt:120");
         UI.loadTable(t, DB.query("""
-            SELECT lk.*, dm.TenBenh, bs.HoTen AS TenBS
-            FROM LanKham lk
-            JOIN DanhMucBenh dm ON lk.MaBenh=dm.MaBenh
-            JOIN BacSi bs ON lk.MaBS=bs.MaBS
-            WHERE lk.MaBN=? ORDER BY lk.NgayVao DESC
+            SELECT MaBN, TenBN, MaLanKham, MaDotDieuTri, TenBenh, LanThuTrongDot,
+                   TongLanKhamBenh, TenBS, NgayVao, NgayRa, ThuocKe, HoTroYTa,
+                   TongTienKham, TongTienThuoc, TrangThai, TrangThaiDot
+            FROM V_HoSoBenhNhan
+            WHERE MaBN=? ORDER BY NgayVao DESC, MaLanKham DESC
             """, maBN));
-        VBox box = new VBox(10, new Label("Lịch sử khám của " + ten + " (" + maBN + ")"), t);
+
+        TableView<Map<String, Object>> current = UI.table(
+                "MaDotDieuTri:Mã đợt:110", "TenBenh:Bệnh hiện tại:160",
+                "NgayBatDau:Bắt đầu:100", "SoLanKham:Số lần khám:100");
+        UI.loadTable(current, DB.query("""
+            SELECT MaDotDieuTri, TenBenh, NgayBatDau, SoLanKham
+            FROM V_DotDieuTri
+            WHERE MaBN=? AND TrangThai='DangDieuTri'
+            ORDER BY NgayBatDau
+            """, maBN));
+        VBox box = new VBox(10,
+                new Label("Hồ sơ bệnh nhân: " + ten + " (" + maBN + ")"),
+                new Label("Bệnh/đợt đang điều trị"),
+                UI.tablePanel(current),
+                new Label("Lịch sử khám từ trước đến nay"),
+                UI.tablePanel(t));
         box.setPadding(new Insets(12));
         dlg.getDialogPane().setContent(box);
         dlg.showAndWait();
@@ -167,22 +186,57 @@ public class BenhNhanView {
         Dialog<ButtonType> d = new Dialog<>();
         d.setTitle("Đăng ký bệnh nhân");
         d.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        String[] labels = {"MaBN","CMT","HoTen","NgaySinh","DiaChi","SDT"};
-        TextField[] f = new TextField[6];
+        TextField tfMa = new TextField();
+        TextField tfCMT = new TextField();
+        TextField tfHoTen = new TextField();
+        ComboBox<String> cbGioiTinh = new ComboBox<>(
+                FXCollections.observableArrayList("Nam", "Nữ"));
+        TextField tfNgaySinh = new TextField();
+        TextField tfDiaChi = new TextField();
+        TextField tfSDT = new TextField();
+        TextField tfEmail = new TextField();
         GridPane g = new GridPane();
         g.setHgap(10); g.setVgap(8); g.setPadding(new Insets(12));
-        for (int i = 0; i < 6; i++) {
-            g.add(new Label(labels[i]+":"), 0, i);
-            f[i] = new TextField();
-            g.add(f[i], 1, i);
-        }
+        g.addRow(0, new Label("Mã bệnh nhân *:"), tfMa);
+        g.addRow(1, new Label("CMT *:"), tfCMT);
+        g.addRow(2, new Label("Họ tên *:"), tfHoTen);
+        g.addRow(3, new Label("Giới tính *:"), cbGioiTinh);
+        g.addRow(4, new Label("Ngày sinh (yyyy-MM-dd) *:"), tfNgaySinh);
+        g.addRow(5, new Label("Địa chỉ *:"), tfDiaChi);
+        g.addRow(6, new Label("SĐT *:"), tfSDT);
+        g.addRow(7, new Label("Email *:"), tfEmail);
         d.getDialogPane().setContent(g);
+
+        Button ok = (Button) d.getDialogPane().lookupButton(ButtonType.OK);
+        ok.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            if (tfMa.getText().isBlank() || tfCMT.getText().isBlank()
+                    || tfHoTen.getText().isBlank() || tfNgaySinh.getText().isBlank()
+                    || tfDiaChi.getText().isBlank() || tfSDT.getText().isBlank()
+                    || tfEmail.getText().isBlank()) {
+                UI.error("Vui lòng nhập đầy đủ thông tin bắt buộc!");
+                event.consume();
+            } else if (cbGioiTinh.getValue() == null) {
+                UI.error("Vui lòng chọn giới tính!");
+                event.consume();
+            } else {
+                try {
+                    LocalDate.parse(tfNgaySinh.getText().trim());
+                } catch (DateTimeParseException ex) {
+                    UI.error("Ngày sinh phải đúng dạng yyyy-MM-dd!");
+                    event.consume();
+                }
+            }
+        });
+
         d.showAndWait().ifPresent(bt -> {
             if (bt == ButtonType.OK) {
-                if (DB.exec("INSERT INTO BenhNhan (MaBN,CMT,HoTen,NgaySinh,NgayDangKy,DiaChi,SDT) VALUES (?,?,?,?,?,?,?)",
-                        f[0].getText(), f[1].getText(), f[2].getText(),
-                        f[3].getText().isBlank() ? null : f[3].getText(),
-                        LocalDate.now(), f[4].getText(), f[5].getText())) {
+                if (DB.exec("INSERT INTO BenhNhan " +
+                                "(MaBN,CMT,HoTen,GioiTinh,NgaySinh,NgayDangKy,DiaChi,SDT,Email) " +
+                                "VALUES (?,?,?,?,?,?,?,?,?)",
+                        tfMa.getText().trim(), tfCMT.getText().trim(), tfHoTen.getText().trim(),
+                        cbGioiTinh.getValue(), java.sql.Date.valueOf(LocalDate.parse(tfNgaySinh.getText().trim())),
+                        java.sql.Date.valueOf(LocalDate.now()), tfDiaChi.getText().trim(),
+                        tfSDT.getText().trim(), tfEmail.getText().trim())) {
                     UI.alert("Đăng ký thành công!"); reload.run();
                 } else UI.error("Lỗi đăng ký!");
             }
@@ -205,6 +259,10 @@ public class BenhNhanView {
         ComboBox<String> cbBenh = new ComboBox<>(FXCollections.observableArrayList(DANH_SACH_BENH));
         cbBenh.getItems().add(BENH_KHAC);
         cbBenh.getSelectionModel().selectFirst();
+        ComboBox<String> cbDot = new ComboBox<>();
+        ComboBox<String> cbTrangThai = new ComboBox<>(FXCollections.observableArrayList(
+                "Đang điều trị", "Đã khỏi"));
+        cbTrangThai.setValue("Đang điều trị");
         TextField tfBenhKhac = new TextField();
         tfBenhKhac.setPromptText("Nhập tên bệnh");
         tfBenhKhac.setVisible(false);
@@ -216,14 +274,72 @@ public class BenhNhanView {
         });
         TextField tfTien = new TextField("300000");
         TextField tfNgay = new TextField(LocalDate.now().toString());
+
+        Runnable refreshEpisodes = () -> {
+            cbDot.getItems().clear();
+            String tenBenh = BENH_KHAC.equals(cbBenh.getValue())
+                    ? tfBenhKhac.getText().trim() : cbBenh.getValue();
+            if (tenBenh.isBlank() || cbBN.getValue() == null) {
+                cbDot.getItems().add("Đợt điều trị mới");
+                cbDot.getSelectionModel().selectFirst();
+                return;
+            }
+            List<Map<String, Object>> disease = DB.query(
+                    "SELECT MaBenh FROM DanhMucBenh WHERE LOWER(TRIM(TenBenh))=LOWER(TRIM(?)) LIMIT 1",
+                    tenBenh);
+            if (!disease.isEmpty()) {
+                List<Map<String, Object>> episodes = DB.query("""
+                    SELECT d.MaDotDieuTri, d.MaBS, bs.HoTen AS TenBS, d.NgayBatDau, d.MaBenh
+                    FROM DotDieuTri d JOIN BacSi bs ON bs.MaBS=d.MaBS
+                    WHERE d.MaBN=? AND d.MaBenh=? AND d.TrangThai='DangDieuTri'
+                    ORDER BY d.NgayBatDau DESC
+                    """, cbBN.getValue().split(" - ")[0], disease.get(0).get("MaBenh"));
+                for (Map<String, Object> episode : episodes) {
+                    cbDot.getItems().add(UI.str(episode.get("MaDotDieuTri")) + " | "
+                            + UI.str(episode.get("TenBS")) + " | " + UI.str(episode.get("NgayBatDau")));
+                }
+            }
+            if (cbDot.getItems().isEmpty()) cbDot.getItems().add("Đợt điều trị mới");
+            cbDot.getSelectionModel().selectFirst();
+        };
+        cbBN.setOnAction(e -> refreshEpisodes.run());
+        cbBenh.setOnAction(e -> {
+            boolean nhapBenhKhac = BENH_KHAC.equals(cbBenh.getValue());
+            tfBenhKhac.setVisible(nhapBenhKhac);
+            tfBenhKhac.setManaged(nhapBenhKhac);
+            refreshEpisodes.run();
+        });
+        tfBenhKhac.textProperty().addListener((obs, oldValue, newValue) -> refreshEpisodes.run());
+        cbDot.valueProperty().addListener((obs, oldValue, selected) -> {
+            boolean existingEpisode = selected != null && !selected.equals("Đợt điều trị mới");
+            cbBS.setDisable(existingEpisode);
+            if (existingEpisode) {
+                String maDot = selected.split(" \\| ")[0];
+                List<Map<String, Object>> episodeDoctor =
+                        DB.query("SELECT MaBS FROM DotDieuTri WHERE MaDotDieuTri=?", maDot);
+                if (!episodeDoctor.isEmpty()) {
+                    String maBS = UI.str(episodeDoctor.get(0).get("MaBS"));
+                    cbBS.getItems().stream().filter(item -> item.startsWith(maBS + " - "))
+                            .findFirst().ifPresent(cbBS::setValue);
+                }
+            }
+        });
+        refreshEpisodes.run();
         VBox body = new VBox(8,
                 new Label("Mã LK:"), tfMa, new Label("BN:"), cbBN, new Label("Bác sĩ:"), cbBS,
                 new Label("Bệnh:"), cbBenh, tfBenhKhac,
-                new Label("Ngày vào:"), tfNgay, new Label("Tiền khám:"), tfTien);
+                new Label("Đợt điều trị (tái khám tiếp tục đợt đang mở):"), cbDot,
+                new Label("Tình trạng sau lần khám:"), cbTrangThai,
+                new Label("Ngày vào (yyyy-MM-dd):"), tfNgay, new Label("Tiền khám:"), tfTien);
         body.setPadding(new Insets(12));
         d.getDialogPane().setContent(body);
         d.showAndWait().ifPresent(bt -> {
             if (bt == ButtonType.OK) {
+                if (cbBN.getValue() == null || cbBS.getValue() == null
+                        || cbBenh.getValue() == null || cbDot.getValue() == null) {
+                    UI.error("Vui lòng chọn đầy đủ bệnh nhân, bác sĩ, bệnh và đợt điều trị!");
+                    return;
+                }
                 String tenBenh = BENH_KHAC.equals(cbBenh.getValue())
                         ? tfBenhKhac.getText().trim() : cbBenh.getValue();
                 if (tenBenh.isBlank()) {
@@ -235,13 +351,52 @@ public class BenhNhanView {
                     UI.error("Không thể lưu bệnh vào danh mục!");
                     return;
                 }
-                long tien = 0;
-                try { tien = Long.parseLong(tfTien.getText().trim()); } catch (Exception ignored) {}
-                if (DB.exec("INSERT INTO LanKham (MaLanKham,MaBN,MaBS,MaBenh,NgayVao,TongTienKham,TrangThai) VALUES (?,?,?,?,?,?,'DangDieuTri')",
-                        tfMa.getText(), cbBN.getValue().split(" - ")[0], cbBS.getValue().split(" - ")[0],
-                        maBenh, tfNgay.getText(), tien)) {
-                    UI.alert("Tạo lần khám thành công!"); reload.run();
-                } else UI.error("Lỗi!");
+                long tien;
+                LocalDate ngayVao;
+                try {
+                    tien = Long.parseLong(tfTien.getText().trim());
+                    ngayVao = LocalDate.parse(tfNgay.getText().trim());
+                    if (tien < 0) throw new IllegalArgumentException();
+                } catch (RuntimeException ex) {
+                    UI.error("Ngày vào hoặc tiền khám không hợp lệ!");
+                    return;
+                }
+
+                String maBN = cbBN.getValue().split(" - ")[0];
+                String maBS = cbBS.getValue().split(" - ")[0];
+                String maLK = tfMa.getText().trim();
+                String trangThai = "Đã khỏi".equals(cbTrangThai.getValue()) ? "DaKhoi" : "DangDieuTri";
+                String selectedEpisode = cbDot.getValue();
+                boolean newEpisode = selectedEpisode == null || selectedEpisode.equals("Đợt điều trị mới");
+                String maDot = newEpisode ? "DT" + maLK : selectedEpisode.split(" \\| ")[0];
+                java.sql.Date ngayKetThuc = "DaKhoi".equals(trangThai)
+                        ? java.sql.Date.valueOf(ngayVao) : null;
+
+                boolean saved = DB.transaction(c -> {
+                    if (newEpisode && DB.exec(c, """
+                            INSERT INTO DotDieuTri
+                                (MaDotDieuTri,MaBN,MaBS,MaBenh,NgayBatDau,NgayKetThuc,TrangThai)
+                            VALUES (?,?,?,?,?,?,?)
+                            """, maDot, maBN, maBS, maBenh, java.sql.Date.valueOf(ngayVao),
+                            ngayKetThuc, trangThai) != 1) return false;
+                    if (DB.exec(c, """
+                            INSERT INTO LanKham
+                                (MaLanKham,MaDotDieuTri,MaBN,MaBS,MaBenh,NgayVao,NgayRa,TongTienKham,TrangThai)
+                            VALUES (?,?,?,?,?,?,?,?,?)
+                            """, maLK, maDot, maBN, maBS, maBenh, java.sql.Date.valueOf(ngayVao),
+                            ngayKetThuc, tien, trangThai) != 1) return false;
+                    return newEpisode || DB.exec(c, """
+                            UPDATE DotDieuTri
+                            SET TrangThai=?, NgayKetThuc=?
+                            WHERE MaDotDieuTri=? AND TrangThai='DangDieuTri'
+                            """, trangThai, ngayKetThuc, maDot) == 1;
+                });
+                if (!saved) {
+                    UI.error("Lỗi lưu lần khám; vui lòng kiểm tra mã lần khám và đợt điều trị!");
+                    return;
+                }
+                UI.alert("Tạo lần khám thành công!");
+                reload.run();
             }
         });
     }

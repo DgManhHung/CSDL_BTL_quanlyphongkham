@@ -8,9 +8,17 @@
    mysql -u root -p --default-character-set=utf8mb4 < database.sql
 
    (database.sql xóa và tạo lại phongkham_db; hãy sao lưu trước khi import.
-   Dữ liệu mẫu là các câu INSERT VALUES tĩnh: 30 bệnh nhân mới mỗi tháng từ 01/2024 đến 11/2026.)
+   File chứa dữ liệu mẫu tĩnh từ 01/2024 đến 13/11/2026: 5 bác sĩ, 7 y tá,
+   1.575 bệnh nhân và 2.060 lượt khám cùng hóa đơn/thanh toán liên quan.
+   Mỗi tháng đầy đủ có 60 lượt khám với giá trị hóa đơn theo gói khám chuyên sâu;
+   lượt khám và hỗ trợ y tá được phân chia lệch, luân phiên giữa nhân viên theo
+   tháng; tháng 11/2026 là dữ liệu lũy kế.)
+   (database.sql tạo thêm bảng DotDieuTri và các view truy vấn Project 1.
+   Các lần tái khám liên tiếp có thể dùng chung một đợt điều trị.)
+   (Ứng dụng cũng tự bổ sung cấu trúc này nếu DB cũ đã được tạo; không cần chạy lại
+   database.sql trừ khi muốn tạo lại toàn bộ DB vì script này sẽ xóa DB hiện tại.)
    (chcp 65001 + utf8mb4 = tránh lỗi font tiếng Việt)
-   Thấy "IMPORT OK" và bảng Username/MatKhau là thành công.
+   Cuối script có kết quả doanh thu theo tháng; tháng 11/2026 là số liệu lũy kế.
 
 2. SỬA PASSWORD MYSQL
    Mở file:
@@ -25,12 +33,12 @@
 4. ĐĂNG NHẬP
    admin   / 123456
    letan01 / 123456
-
-   (Mật khẩu lưu plain text trong DB – dễ demo, không hash)
+   bsan    / 123456
+   Đây là tài khoản mô phỏng; ứng dụng hiện đối chiếu mật khẩu dạng plain text.
 
 5. NẾU LỖI ĐĂNG NHẬP
-   mysql -u root -p -e "USE phongkham_db; SELECT * FROM NguoiDung;"
-   Phải thấy admin / 123456
+   mysql -u root -p -e "USE phongkham_db; SELECT Username,VaiTro,TrangThai FROM NguoiDung;"
+   Kiểm tra tài khoản tồn tại và TrangThai='Active'.
 
 6. FONT TIẾNG VIỆT
    - Code đã ép UTF-8 (DB.java + app.css font Segoe UI)

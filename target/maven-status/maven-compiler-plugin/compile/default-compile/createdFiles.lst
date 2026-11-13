@@ -3,6 +3,7 @@ com\phongkham\tv5_doanhthu\DoanhThuView.class
 com\phongkham\shared\DB.class
 com\phongkham\tv3_benhnhan\BenhNhanView.class
 com\phongkham\tv2_yta\YTaView.class
+com\phongkham\shared\DB$TransactionWork.class
 com\phongkham\shared\UI$1.class
 com\phongkham\tv4_thuoc\ThuocView.class
 com\phongkham\tv1_bacsi\BacSiView.class

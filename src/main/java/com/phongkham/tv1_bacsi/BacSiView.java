@@ -16,11 +16,8 @@ import java.util.*;
 /**
  * ========== TV1: BÁC SĨ & TÍNH LƯƠNG ==========
  * - CRUD Bác sĩ (thêm / sửa / xóa / tìm kiếm)
- * - Tính lương theo tháng:
- *     Lương = 7.000.000 + 1.000.000 × (số BN chữa khỏi 1 loại bệnh trong tháng)
- *   Đếm theo LanKham WHERE TrangThai='DaKhoi', GROUP BY MaBS, MaBN, MaBenh
- *   (1 bệnh nhân khỏi 1 loại bệnh = 1 lượt, dù có nhiều lần khám cùng bệnh).
- *   Tháng tính theo ngày ra viện (NgayRa); nếu thiếu NgayRa thì dùng NgayVao.
+ * - Lương tháng: 7.000.000 + 1.000.000 cho mỗi đợt điều trị đã khỏi.
+ *   Các lần khám liên tiếp trong một đợt chỉ được tính thưởng một lần.
  *
  * Gọi từ MainShell: BacSiView.luongBacSi()
  */
@@ -68,7 +65,7 @@ public class BacSiView {
                 "TrinhDo:Trình độ:90", "ChuyenMon:Chuyên môn:110");
 
         String selectDoctors = """
-                SELECT MaBS,CMT,HoTen,NgaySinh,DiaChi,NgayVaoLam,
+                SELECT MaBS,CMT,HoTen,GioiTinh,NgaySinh,SDT,Email,DiaChi,NgayVaoLam,
                        TIMESTAMPDIFF(YEAR,NgayVaoLam,CURDATE()) AS ThamNien,TrinhDo,ChuyenMon
                 FROM BacSi
                 """;
@@ -127,7 +124,12 @@ public class BacSiView {
         TextField tfMa = new TextField(edit ? UI.str(old.get("MaBS")) : "");
         TextField tfCMT = new TextField(edit ? UI.str(old.get("CMT")) : "");
         TextField tfHoTen = new TextField(edit ? UI.str(old.get("HoTen")) : "");
+        ComboBox<String> cbGioiTinh = new ComboBox<>(
+                FXCollections.observableArrayList("Nam", "Nữ"));
+        cbGioiTinh.setValue(edit ? UI.str(old.get("GioiTinh")) : null);
         TextField tfNgaySinh = new TextField(edit ? UI.str(old.get("NgaySinh")) : "");
+        TextField tfSDT = new TextField(edit ? UI.str(old.get("SDT")) : "");
+        TextField tfEmail = new TextField(edit ? UI.str(old.get("Email")) : "");
         TextField tfDiaChi = new TextField(edit ? UI.str(old.get("DiaChi")) : "");
         DatePicker dpNgayVaoLam = new DatePicker(edit
                 ? LocalDate.parse(UI.str(old.get("NgayVaoLam"))) : LocalDate.now());
@@ -138,7 +140,8 @@ public class BacSiView {
         dpNgayVaoLam.setOnAction(e -> updateSeniority.run());
         updateSeniority.run();
         ComboBox<String> cbTrinhDo = new ComboBox<>(FXCollections.observableArrayList(
-                "Đại học", "Thạc sĩ", "Tiến sĩ", "Chuyên khoa I", "Chuyên khoa II"));
+                "Bác sĩ đa khoa", "Bác sĩ nội trú", "Bác sĩ Chuyên khoa I",
+                "Bác sĩ Chuyên Khoa II", "Thạc sĩ", "Tiến sĩ"));
         ComboBox<String> cbChuyenMon = new ComboBox<>(FXCollections.observableArrayList(
                 "Nội khoa", "Nhi khoa", "Ngoại khoa", "Tim mạch", "Da liễu",
                 "Tai Mũi Họng", "Mắt", "Răng Hàm Mặt", "Sản phụ khoa", "Thần kinh",
@@ -148,26 +151,30 @@ public class BacSiView {
             addLegacyChoice(cbTrinhDo, UI.str(old.get("TrinhDo")));
             addLegacyChoice(cbChuyenMon, UI.str(old.get("ChuyenMon")));
         }
-        cbTrinhDo.setValue(edit ? UI.str(old.get("TrinhDo")) : "Đại học");
+        cbTrinhDo.setValue(edit ? UI.str(old.get("TrinhDo")) : "Bác sĩ đa khoa");
         cbChuyenMon.setValue(edit ? UI.str(old.get("ChuyenMon")) : "Nội khoa");
         GridPane g = new GridPane();
         g.setHgap(10); g.setVgap(8); g.setPadding(new Insets(12));
         g.addRow(0, new Label("Mã BS:"), tfMa);
         g.addRow(1, new Label("CMT *:"), tfCMT);
         g.addRow(2, new Label("Họ tên *:"), tfHoTen);
-        g.addRow(3, new Label("Ngày sinh (yyyy-MM-dd):"), tfNgaySinh);
-        g.addRow(4, new Label("Địa chỉ:"), tfDiaChi);
-        g.addRow(5, new Label("Ngày vào làm:"), dpNgayVaoLam);
-        g.addRow(6, new Label("Thâm niên hiện tại:"), tfThamNien);
-        g.addRow(7, new Label("Trình độ:"), cbTrinhDo);
-        g.addRow(8, new Label("Chuyên môn:"), cbChuyenMon);
+        g.addRow(3, new Label("Giới tính *:"), cbGioiTinh);
+        g.addRow(4, new Label("Ngày sinh (yyyy-MM-dd) *:"), tfNgaySinh);
+        g.addRow(5, new Label("SĐT *:"), tfSDT);
+        g.addRow(6, new Label("Email *:"), tfEmail);
+        g.addRow(7, new Label("Địa chỉ *:"), tfDiaChi);
+        g.addRow(8, new Label("Ngày vào làm:"), dpNgayVaoLam);
+        g.addRow(9, new Label("Thâm niên hiện tại:"), tfThamNien);
+        g.addRow(10, new Label("Trình độ:"), cbTrinhDo);
+        g.addRow(11, new Label("Chuyên môn:"), cbChuyenMon);
         if (edit) tfMa.setDisable(true);
         d.getDialogPane().setContent(g);
 
         // Kiểm tra dữ liệu trước khi đóng dialog
         Button ok = (Button) d.getDialogPane().lookupButton(ButtonType.OK);
         ok.addEventFilter(javafx.event.ActionEvent.ACTION, ev -> {
-            String err = validate(tfMa, tfCMT, tfHoTen, tfNgaySinh, dpNgayVaoLam);
+            String err = validate(tfMa, tfCMT, tfHoTen, cbGioiTinh, tfNgaySinh,
+                    tfSDT, tfEmail, tfDiaChi, cbTrinhDo, dpNgayVaoLam);
             if (err != null) { UI.error(err); ev.consume(); }
         });
 
@@ -176,32 +183,41 @@ public class BacSiView {
             Object ns = tfNgaySinh.getText().isBlank() ? null : tfNgaySinh.getText().trim();
             boolean okDb;
             if (edit) {
-                okDb = DB.exec("UPDATE BacSi SET CMT=?, HoTen=?, NgaySinh=?, DiaChi=?, " +
-                                "NgayVaoLam=?, TrinhDo=?, ChuyenMon=? WHERE MaBS=?",
-                        tfCMT.getText().trim(), tfHoTen.getText().trim(), ns, tfDiaChi.getText().trim(),
+                okDb = DB.exec("UPDATE BacSi SET CMT=?, HoTen=?, GioiTinh=?, NgaySinh=?, SDT=?, Email=?, " +
+                                "DiaChi=?, NgayVaoLam=?, TrinhDo=?, ChuyenMon=? WHERE MaBS=?",
+                        tfCMT.getText().trim(), tfHoTen.getText().trim(), cbGioiTinh.getValue(), ns,
+                        tfSDT.getText().trim(), tfEmail.getText().trim(), tfDiaChi.getText().trim(),
                         java.sql.Date.valueOf(dpNgayVaoLam.getValue()), cbTrinhDo.getValue(),
                         cbChuyenMon.getValue(), tfMa.getText().trim());
             } else {
-                okDb = DB.exec("INSERT INTO BacSi (MaBS,CMT,HoTen,NgaySinh,DiaChi,NgayVaoLam,TrinhDo,ChuyenMon) " +
-                                "VALUES (?,?,?,?,?,?,?,?)",
-                        tfMa.getText().trim(), tfCMT.getText().trim(), tfHoTen.getText().trim(), ns,
+                okDb = DB.exec("INSERT INTO BacSi " +
+                                "(MaBS,CMT,HoTen,GioiTinh,NgaySinh,SDT,Email,DiaChi,NgayVaoLam,TrinhDo,ChuyenMon) " +
+                                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        tfMa.getText().trim(), tfCMT.getText().trim(), tfHoTen.getText().trim(),
+                        cbGioiTinh.getValue(), ns, tfSDT.getText().trim(), tfEmail.getText().trim(),
                         tfDiaChi.getText().trim(), java.sql.Date.valueOf(dpNgayVaoLam.getValue()),
                         cbTrinhDo.getValue(), cbChuyenMon.getValue());
             }
             if (okDb) { UI.alert(edit ? "Cập nhật thành công!" : "Thêm Bác sĩ thành công!"); reload.run(); }
-            else UI.error("Lỗi lưu dữ liệu! (Mã BS hoặc CMT có thể bị trùng)");
+            else UI.error("Lỗi lưu dữ liệu! (Mã BS, CMT, SĐT hoặc email có thể bị trùng)");
         });
     }
 
     private static String validate(TextField ma, TextField cmt, TextField hoTen,
-                                   TextField ngaySinh, DatePicker ngayVaoLam) {
+                                   ComboBox<String> gioiTinh, TextField ngaySinh,
+                                   TextField sdt, TextField email, TextField diaChi,
+                                   ComboBox<String> trinhDo, DatePicker ngayVaoLam) {
         if (ma.getText().isBlank()) return "Mã BS không được để trống!";
         if (cmt.getText().isBlank()) return "CMT không được để trống!";
         if (hoTen.getText().isBlank()) return "Họ tên không được để trống!";
-        if (!ngaySinh.getText().isBlank()) {
-            try { LocalDate.parse(ngaySinh.getText().trim()); }
-            catch (DateTimeParseException e) { return "Ngày sinh phải đúng dạng yyyy-MM-dd (vd 1980-05-15)!"; }
-        }
+        if (gioiTinh.getValue() == null) return "Vui lòng chọn giới tính!";
+        if (ngaySinh.getText().isBlank()) return "Ngày sinh không được để trống!";
+        try { LocalDate.parse(ngaySinh.getText().trim()); }
+        catch (DateTimeParseException e) { return "Ngày sinh phải đúng dạng yyyy-MM-dd (vd 1980-05-15)!"; }
+        if (sdt.getText().isBlank()) return "SĐT không được để trống!";
+        if (email.getText().isBlank()) return "Email không được để trống!";
+        if (diaChi.getText().isBlank()) return "Địa chỉ không được để trống!";
+        if (trinhDo.getValue() == null) return "Vui lòng chọn trình độ!";
         if (ngayVaoLam.getValue() == null) return "Vui lòng chọn ngày vào làm!";
         if (ngayVaoLam.getValue().isAfter(LocalDate.now())) return "Ngày vào làm không được ở tương lai!";
         return null;
@@ -243,41 +259,39 @@ public class BacSiView {
         cbN.setValue(LocalDate.now().getYear());
 
         VBox c1 = UI.card("Tổng số Bác sĩ", "0", "#0d9488");
-        VBox c2 = UI.card("BN chữa khỏi (lượt)", "0", "#0284c7");
+        VBox c2 = UI.card("Đợt điều trị đã khỏi", "0", "#0284c7");
         VBox c3 = UI.card("Tổng chi lương", "0", "#7c3aed");
         HBox cards = new HBox(16, c1, c2, c3);
 
         TableView<Map<String, Object>> table = UI.table(
                 "MaBS:Mã BS:70", "HoTen:Họ tên:150", "ChuyenMon:Chuyên môn:110",
-                "ThamNien:Thâm niên:75", "LuongCB:Lương CB:110", "SoCaKhoi:Số BN khỏi:90",
+                "LuongCB:Lương cơ bản:110", "SoDotKhoi:Đợt khỏi:90",
                 "PhuCap:Thưởng:110", "TongLuong:Tổng lương:130");
 
         Runnable load = () -> {
-            // Mỗi (BS, BN, Bệnh) đã khỏi trong tháng chỉ tính 1 lượt
+            LocalDate from = LocalDate.of(cbN.getValue(), cbT.getValue(), 1);
+            LocalDate until = from.plusMonths(1);
+            LocalDate today = LocalDate.now();
+            if (from.getYear() == today.getYear() && from.getMonth() == today.getMonth()) {
+                until = today.plusDays(1);
+            }
             List<Map<String, Object>> data = DB.query("""
                 SELECT b.MaBS, b.HoTen, b.ChuyenMon,
-                       TIMESTAMPDIFF(YEAR,b.NgayVaoLam,CURDATE()) AS ThamNien,
                        7000000 AS LuongCB,
-                       COALESCE(k.SoCa,0) AS SoCaKhoi,
-                       COALESCE(k.SoCa,0)*1000000 AS PhuCap,
-                       7000000 + COALESCE(k.SoCa,0)*1000000 AS TongLuong
+                       COUNT(d.MaDotDieuTri) AS SoDotKhoi,
+                       COUNT(d.MaDotDieuTri)*1000000 AS PhuCap,
+                       7000000 + COUNT(d.MaDotDieuTri)*1000000 AS TongLuong
                 FROM BacSi b
-                LEFT JOIN (
-                    SELECT MaBS, COUNT(*) AS SoCa FROM (
-                        SELECT MaBS, MaBN, MaBenh
-                        FROM LanKham
-                        WHERE TrangThai='DaKhoi'
-                          AND MONTH(COALESCE(NgayRa,NgayVao))=? AND YEAR(COALESCE(NgayRa,NgayVao))=?
-                        GROUP BY MaBS, MaBN, MaBenh
-                    ) t GROUP BY MaBS
-                ) k ON b.MaBS=k.MaBS
+                LEFT JOIN V_DotDieuTri d ON d.MaBS=b.MaBS AND d.TrangThai='DaKhoi'
+                    AND d.NgayKetThuc>=? AND d.NgayKetThuc<?
+                GROUP BY b.MaBS, b.HoTen, b.ChuyenMon
                 ORDER BY b.MaBS
-                """, cbT.getValue(), cbN.getValue());
+                """, java.sql.Date.valueOf(from), java.sql.Date.valueOf(until));
             UI.loadTable(table, data);
-            long ca = data.stream().mapToLong(m -> UI.toLong(m.get("SoCaKhoi"))).sum();
+            long ca = data.stream().mapToLong(m -> UI.toLong(m.get("SoDotKhoi"))).sum();
             long luong = data.stream().mapToLong(m -> UI.toLong(m.get("TongLuong"))).sum();
             UI.setCardValue(c1, data.size() + " người");
-            UI.setCardValue(c2, ca + " lượt");
+            UI.setCardValue(c2, ca + " đợt khỏi");
             UI.setCardValue(c3, UI.MONEY.format(luong) + " đ");
         };
         cbT.setOnAction(e -> load.run());
@@ -292,7 +306,7 @@ public class BacSiView {
         });
 
         Label note = new Label("Lương = " + UI.MONEY.format(LUONG_CB) + " + " + UI.MONEY.format(THUONG_MOI_CA)
-                + " × số bệnh nhân chữa khỏi 1 loại bệnh trong tháng");
+                + " × số đợt điều trị đã khỏi trong tháng");
         note.setTextFill(javafx.scene.paint.Color.GRAY);
 
         VBox tablePanel = UI.tablePanel(table);
@@ -305,27 +319,31 @@ public class BacSiView {
     }
 
     private static void chiTietCaKhoi(String maBS, String tenBS, int thang, int nam) {
+        LocalDate from = LocalDate.of(nam, thang, 1);
+        LocalDate until = from.plusMonths(1);
+        LocalDate today = LocalDate.now();
+        if (from.getYear() == today.getYear() && from.getMonth() == today.getMonth()) {
+            until = today.plusDays(1);
+        }
         List<Map<String, Object>> data = DB.query("""
-            SELECT lk.MaBN, bn.HoTen AS TenBN, dm.TenBenh,
-                   COUNT(*) AS SoLanKham, MAX(lk.NgayRa) AS NgayRa
-            FROM LanKham lk
-            JOIN BenhNhan bn ON lk.MaBN=bn.MaBN
-            JOIN DanhMucBenh dm ON lk.MaBenh=dm.MaBenh
-            WHERE lk.MaBS=? AND lk.TrangThai='DaKhoi'
-              AND MONTH(COALESCE(lk.NgayRa,lk.NgayVao))=? AND YEAR(COALESCE(lk.NgayRa,lk.NgayVao))=?
-            GROUP BY lk.MaBN, bn.HoTen, lk.MaBenh, dm.TenBenh
-            ORDER BY lk.MaBN
-            """, maBS, thang, nam);
+            SELECT d.MaDotDieuTri, d.MaBN, d.TenBN, d.TenBenh,
+                   d.SoLanKham, d.NgayBatDau, d.NgayKetThuc
+            FROM V_DotDieuTri d
+            WHERE d.MaBS=? AND d.TrangThai='DaKhoi'
+              AND d.NgayKetThuc>=? AND d.NgayKetThuc<?
+            ORDER BY d.NgayKetThuc, d.MaBN
+            """, maBS, java.sql.Date.valueOf(from), java.sql.Date.valueOf(until));
 
         TableView<Map<String, Object>> t = UI.table(
-                "MaBN:Mã BN:80", "TenBN:Bệnh nhân:150", "TenBenh:Bệnh:130",
-                "SoLanKham:Số lần khám:90", "NgayRa:Ngày ra:100");
+                "MaDotDieuTri:Mã đợt:110", "MaBN:Mã BN:80", "TenBN:Bệnh nhân:150",
+                "TenBenh:Bệnh:130", "SoLanKham:Số lần khám:90",
+                "NgayBatDau:Bắt đầu:100", "NgayKetThuc:Khỏi:100");
         UI.loadTable(t, data);
 
         Dialog<ButtonType> d = new Dialog<>();
         d.setTitle("Chi tiết ca khỏi");
         d.setHeaderText(tenBS + " (" + maBS + ") – tháng " + thang + "/" + nam
-                + " – " + data.size() + " lượt khỏi");
+                + " – " + data.size() + " đợt điều trị khỏi");
         d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         t.setPrefSize(560, 280);
         d.getDialogPane().setContent(t);
