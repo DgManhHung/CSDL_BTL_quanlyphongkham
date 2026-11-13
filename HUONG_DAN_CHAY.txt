@@ -14,7 +14,9 @@
    lượt khám và hỗ trợ y tá được phân chia lệch, luân phiên giữa nhân viên theo
    tháng; tháng 11/2026 là dữ liệu lũy kế.)
    (database.sql tạo thêm bảng DotDieuTri và các view truy vấn Project 1.
-   Các lần tái khám liên tiếp có thể dùng chung một đợt điều trị.)
+   Trong 2.060 lượt khám có 1.715 đợt điều trị: các lần tái khám liên tiếp
+   dùng chung mã đợt, còn tái phát sau khi khỏi được ghi bằng mã đợt mới.
+   Truy vấn hồ sơ mẫu mặc định dùng BN000001 để thấy lịch sử và đợt hiện tại.)
    (Ứng dụng cũng tự bổ sung cấu trúc này nếu DB cũ đã được tạo; không cần chạy lại
    database.sql trừ khi muốn tạo lại toàn bộ DB vì script này sẽ xóa DB hiện tại.)
    (chcp 65001 + utf8mb4 = tránh lỗi font tiếng Việt)
