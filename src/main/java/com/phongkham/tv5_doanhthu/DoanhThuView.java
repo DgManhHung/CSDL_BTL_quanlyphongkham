@@ -3,7 +3,6 @@ package com.phongkham.tv5_doanhthu;
 import com.phongkham.shared.DB;
 import com.phongkham.shared.UI;
 import javafx.collections.FXCollections;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -37,24 +36,28 @@ public class DoanhThuView {
                 "MaBS:Mã BS:80", "HoTen:Bác sĩ:160", "SoHD:Số HĐ:80", "TongDT:Doanh thu:140");
 
         Runnable load = () -> {
+            LocalDate from = LocalDate.of(cbN.getValue(), cbT.getValue(), 1);
+            LocalDate until = from.plusMonths(1);
+            LocalDate today = LocalDate.now();
+            if (from.getYear() == today.getYear() && from.getMonth() == today.getMonth()) {
+                until = today.plusDays(1);
+            }
             List<Map<String, Object>> tong = DB.query("""
                 SELECT COALESCE(SUM(TienKham),0) TongKham, COALESCE(SUM(TienThuoc),0) TongThuoc,
                        COALESCE(SUM(TongTien),0) TongDT, COUNT(*) SoHD
-                FROM HoaDon WHERE MONTH(NgayLap)=? AND YEAR(NgayLap)=? AND TrangThai!='Huy'
-                """, cbT.getValue(), cbN.getValue());
+                FROM V_DoanhThuHoaDon WHERE NgayLap>=? AND NgayLap<?
+                """, java.sql.Date.valueOf(from), java.sql.Date.valueOf(until));
             Map<String, Object> m = tong.get(0);
             UI.setCardValue(c1, UI.MONEY.format(m.get("TongDT")) + " đ");
             UI.setCardValue(c2, UI.MONEY.format(m.get("TongKham")) + " đ");
             UI.setCardValue(c3, UI.MONEY.format(m.get("TongThuoc")) + " đ");
             UI.setCardValue(c4, UI.str(m.get("SoHD")));
             UI.loadTable(table, DB.query("""
-                SELECT bs.MaBS, bs.HoTen, COUNT(DISTINCT hd.MaHoaDon) SoHD, SUM(hd.TongTien) TongDT
-                FROM HoaDon hd
-                JOIN LanKham lk ON hd.MaLanKham=lk.MaLanKham
-                JOIN BacSi bs ON lk.MaBS=bs.MaBS
-                WHERE MONTH(hd.NgayLap)=? AND YEAR(hd.NgayLap)=? AND hd.TrangThai!='Huy'
-                GROUP BY bs.MaBS, bs.HoTen ORDER BY TongDT DESC
-                """, cbT.getValue(), cbN.getValue()));
+                SELECT MaBS, TenBS AS HoTen, COUNT(DISTINCT MaHoaDon) SoHD, SUM(TongTien) TongDT
+                FROM V_DoanhThuHoaDon
+                WHERE NgayLap>=? AND NgayLap<?
+                GROUP BY MaBS, TenBS ORDER BY TongDT DESC
+                """, java.sql.Date.valueOf(from), java.sql.Date.valueOf(until)));
         };
         cbT.setOnAction(e -> load.run());
         cbN.setOnAction(e -> load.run());

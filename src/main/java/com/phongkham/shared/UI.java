@@ -139,13 +139,22 @@ public class UI {
                     if (empty || value == null || value.isBlank()) return;
 
                     if (isTagColumn(key)) {
+                        String style = tagStyle(key, value);
                         tag.setText(value);
-                        tag.getStyleClass().setAll("table-tag", tagStyle(key, value));
+                        tag.getStyleClass().setAll("table-tag", style);
+                        // Khóa màu chữ trực tiếp để khi click chọn dòng không bị biến thành chữ đen
+                        tag.setStyle("-fx-text-fill: " + tagTextColor(style) + ";");
                         setGraphic(tag);
                         setAlignment(Pos.CENTER);
                     } else {
                         setText(value);
-                        if (isCenteredColumn(key)) setAlignment(Pos.CENTER);
+                        setPadding(Insets.EMPTY); // Reset khoảng cách lề
+                        if (isCenteredColumn(key)) {
+                            setAlignment(Pos.CENTER);
+                        } else if (isRightColumn(key)) {
+                            setAlignment(Pos.CENTER_RIGHT);
+                            setPadding(new Insets(0, 14, 0, 0)); // Cách lề phải 14px để số không dính sát mép cột
+                        }
                     }
                 }
             });
@@ -198,25 +207,45 @@ public class UI {
     }
 
     private static boolean isCenteredColumn(String key) {
-        return key.startsWith("Ma") || key.equals("CMT") || key.startsWith("Ngay")
-                || key.equals("ThamNien") || key.startsWith("So");
+        return key.startsWith("Ma") || key.equals("CMT") || key.equals("GioiTinh")
+                || key.startsWith("Ngay") || key.equals("ThamNien") || key.startsWith("So");
+    }
+    private static boolean isRightColumn(String key) {
+        return "PhuCap".equals(key) || "TongLuong".equals(key);
     }
 
     private static String tagStyle(String key, String value) {
+        String normalized = value.toLowerCase(Locale.ROOT).trim();
         if ("TrinhDo".equals(key)) {
-            return switch (value.toLowerCase(Locale.ROOT)) {
-                case "cử nhân", "đại học", "thạc sĩ", "tiến sĩ" -> "table-tag-blue";
-                case "cao đẳng", "chuyên khoa i", "chuyên khoa ii" -> "table-tag-orange";
-                default -> "table-tag-gray";
+            return switch (normalized) {
+                case "bác sĩ nội trú", "bsnt" -> "table-tag-green";
+                case "cử nhân", "đại học", "bác sĩ chuyên khoa i", "bscki", "thạc sĩ", "ths" -> "table-tag-blue";
+                case "cao đẳng", "bác sĩ chuyên khoa ii", "bsckii", "tiến sĩ", "ts" -> "table-tag-orange";
+                default -> "table-tag-gray"; // Bác sĩ đa khoa (BSĐK) & Trung cấp (Y tá)
             };
         }
-        String normalized = value.toLowerCase(Locale.ROOT);
         if (normalized.contains("đã thanh toán") || normalized.contains("đã khỏi")
-                || normalized.contains("hoàn thành")) return "table-tag-green";
-        if (normalized.contains("chưa thanh toán") || normalized.contains("đang điều trị"))
+                || normalized.contains("hoàn thành") || normalized.contains("đang làm việc")) {
+            return "table-tag-green";
+        }
+        if (normalized.contains("chưa thanh toán") || normalized.contains("đang điều trị")) {
             return "table-tag-orange";
-        if (normalized.contains("hủy")) return "table-tag-red";
+        }
+        if (normalized.contains("hủy") || normalized.contains("đã nghỉ việc")) {
+            return "table-tag-red"; // Hoặc đổi thành "table-tag-gray" nếu muốn Đã nghỉ việc màu xám
+        }
         return "table-tag-blue";
+    }
+
+    /** Giữ đúng màu chữ cho 5 loại thẻ ngay cả khi dòng TableView đang được :selected */
+    private static String tagTextColor(String styleClass) {
+        return switch (styleClass) {
+            case "table-tag-green" -> "#15803d";
+            case "table-tag-orange" -> "#c2410c";
+            case "table-tag-red" -> "#b91c1c";
+            case "table-tag-gray" -> "#475569";
+            default -> "#0284c7"; // table-tag-blue
+        };
     }
 
     private static final class TablePager {

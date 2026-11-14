@@ -191,13 +191,25 @@ public class ThuocView {
         cbN.setValue(LocalDate.now().getYear());
 
         TableView<Map<String, Object>> table = UI.table(
-                "MaBenh:Mã bệnh:80", "TenBenh:Tên bệnh:200", "SoBN:Số bệnh nhân:120", "SoLanKham:Số lần khám:120");
-        Runnable load = () -> UI.loadTable(table, DB.query("""
-            SELECT dm.MaBenh, dm.TenBenh, COUNT(DISTINCT lk.MaBN) AS SoBN, COUNT(*) AS SoLanKham
-            FROM LanKham lk JOIN DanhMucBenh dm ON lk.MaBenh=dm.MaBenh
-            WHERE MONTH(lk.NgayVao)=? AND YEAR(lk.NgayVao)=?
-            GROUP BY dm.MaBenh, dm.TenBenh ORDER BY SoBN DESC
-            """, cbT.getValue(), cbN.getValue()));
+                "MaBenh:Mã bệnh:80", "TenBenh:Tên bệnh:200", "SoBN:Số bệnh nhân:120",
+                "SoDotMac:Số đợt mắc:120");
+        Runnable load = () -> {
+            LocalDate from = LocalDate.of(cbN.getValue(), cbT.getValue(), 1);
+            LocalDate until = from.plusMonths(1);
+            LocalDate today = LocalDate.now();
+            if (from.getYear() == today.getYear() && from.getMonth() == today.getMonth()) {
+                until = today.plusDays(1);
+            }
+            UI.loadTable(table, DB.query("""
+                SELECT d.MaBenh, d.TenBenh, COUNT(DISTINCT d.MaBN) AS SoBN,
+                       COUNT(DISTINCT d.MaDotDieuTri) AS SoDotMac
+                FROM V_DotDieuTri d
+                JOIN LanKham lk ON lk.MaDotDieuTri=d.MaDotDieuTri
+                WHERE lk.NgayVao>=? AND lk.NgayVao<?
+                GROUP BY d.MaBenh, d.TenBenh
+                ORDER BY SoDotMac DESC, SoBN DESC, TenBenh
+                """, java.sql.Date.valueOf(from), java.sql.Date.valueOf(until)));
+        };
         cbT.setOnAction(e -> load.run());
         cbN.setOnAction(e -> load.run());
         load.run();

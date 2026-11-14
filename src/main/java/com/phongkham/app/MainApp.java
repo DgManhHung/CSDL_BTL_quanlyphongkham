@@ -13,11 +13,11 @@ public class MainApp extends Application {
     @Override
     public void start(Stage stage) {
         try {
-            DB.ensureSenioritySchema();
+            DB.ensureSchema();
         } catch (SQLException e) {
             e.printStackTrace();
             new Alert(Alert.AlertType.ERROR,
-                    "Không thể cập nhật cấu trúc dữ liệu thâm niên: " + e.getMessage(),
+                    "Không thể cập nhật cấu trúc cơ sở dữ liệu: " + e.getMessage(),
                     ButtonType.OK).showAndWait();
             return;
         }
